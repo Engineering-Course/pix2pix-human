@@ -3,6 +3,8 @@ import os
 import scipy.misc
 import numpy as np
 
+import os
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 from human import pix2pix
 import tensorflow as tf
 
