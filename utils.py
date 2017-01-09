@@ -37,6 +37,25 @@ def load_image(image_path):
 
     return img_A, img_B
 
+#---------------------------------
+# new added function for lip dataset
+def load_lip_data(image_path, flip=True, is_test=False):
+    img_name = image_path.split('/')[-1]
+    img_id = img_name.split('.')[0]
+    label_path = './datasets/human/label/{}.png'.format(img_id)
+    img_A = imread(image_path)
+    img_B = imread(label_path)
+
+    img_A, img_B = preprocess_A_and_B(img_A, img_B, flip=flip, is_test=is_test)
+
+    img_A = img_A/127.5 - 1.
+    img_B = img_B/127.5 - 1.
+
+    img_AB = np.concatenate((img_A, img_B), axis=2)
+    # img_AB shape: (fine_size, fine_size, input_c_dim + output_c_dim)
+    return img_AB
+
+#------------------------------------------------------------
 def preprocess_A_and_B(img_A, img_B, load_size=286, fine_size=256, flip=True, is_test=False):
     if is_test:
         img_A = scipy.misc.imresize(img_A, [fine_size, fine_size])

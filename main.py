@@ -3,7 +3,7 @@ import os
 import scipy.misc
 import numpy as np
 
-from model import pix2pix
+from human import pix2pix
 import tensorflow as tf
 
 parser = argparse.ArgumentParser(description='')
