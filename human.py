@@ -110,7 +110,9 @@ class pix2pix(object):
 
 
     def load_random_samples(self):
-        data = np.random.choice(glob('./datasets/{}/val/*.jpg'.format(self.dataset_name)), self.batch_size)
+        #data = np.random.choice(glob('./datasets/{}/images/*.jpg'.format(self.dataset_name)), self.batch_size)
+        with open('./datasets/human/list/val_rgb_id.txt', 'r') as list_file:
+            data = list_file.readlines()
         sample = [load_lip_data(sample_file) for sample_file in data]
 
         if (self.is_grayscale):
@@ -151,8 +153,10 @@ class pix2pix(object):
             print(" [!] Load failed...")
 
         for epoch in xrange(args.epoch):
-            data = glob('./datasets/{}/train/*.jpg'.format(self.dataset_name))
-            #np.random.shuffle(data)
+            #data = glob('./datasets/{}/images/*.jpg'.format(self.dataset_name))
+            with open('./datasets/human/list/train_rgb_id.txt', 'r') as list_file:
+                data = list_file.readlines()
+            np.random.shuffle(data)
             batch_idxs = min(len(data), args.train_size) // self.batch_size
 
             for idx in xrange(0, batch_idxs):
@@ -384,7 +388,7 @@ class pix2pix(object):
         """Test pix2pix"""
         tf.initialize_all_variables().run()
 
-        sample_files = glob('./datasets/{}/val/*.jpg'.format(self.dataset_name))
+        sample_files = glob('./datasets/human/val/*.jpg'.format(self.dataset_name))
 
         # sort testing input
         n = [int(i) for i in map(lambda x: x.split('/')[-1].split('.jpg')[0], sample_files)]

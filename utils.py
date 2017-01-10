@@ -39,10 +39,10 @@ def load_image(image_path):
 
 #---------------------------------
 # new added function for lip dataset
-def load_lip_data(image_path, flip=True, is_test=False):
-    img_name = image_path.split('/')[-1]
-    img_id = img_name.split('.')[0]
-    label_path = './datasets/human/label/{}.png'.format(img_id)
+def load_lip_data(image_id, flip=True, is_test=False):
+    image_id = image_id[:-1] 
+    image_path = './datasets/human/images/{}.jpg'.format(image_id)
+    label_path = './datasets/human/masks/{}.png'.format(image_id)
     img_A = imread(image_path)
     img_B = imread(label_path)
 
