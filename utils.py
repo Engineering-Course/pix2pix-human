@@ -8,6 +8,7 @@ import random
 import pprint
 import scipy.misc
 import numpy as np
+import cv2
 from time import gmtime, strftime
 
 pp = pprint.PrettyPrinter()
@@ -103,6 +104,14 @@ def preprocess_A_and_B(img_A, img_B, load_size=286, fine_size=256, flip=True, is
     return img_A, img_B
 
 # -----------------------------
+
+# new added function for lip dataset
+def save_lip_images(images, batch_size, batch_idx, preffix, sample_files):
+    # images = inverse_transform(images)
+    for i, image in enumerate(images):
+        path = './test/{}_{}.png'.format(preffix, sample_files[batch_size * batch_idx + i][:-1])
+        cv2.imwrite(path, np.squeeze(image))
+        # scipy.misc.imsave(path, np.squeeze(image))
 
 def get_image(image_path, image_size, is_crop=True, resize_w=64, is_grayscale = False):
     return transform(imread(image_path, is_grayscale), image_size, is_crop, resize_w)

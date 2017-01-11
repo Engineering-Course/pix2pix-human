@@ -395,9 +395,9 @@ class pix2pix(object):
         tf.initialize_all_variables().run()
 
         #sample_files = glob('./datasets/human/val/*.jpg'.format(self.dataset_name))
-        with open('./dataset/human/list/test_rgb_id.txt', 'r') as list_file:
+        with open('./datasets/human/list/test_rgb_id.txt', 'r') as list_file:
             lines = list_file.readlines()
-        sample_file = np.random.choice(lines, 100)
+        sample_files = np.random.choice(lines, 100)
 
         # sort testing input
         #n = [int(i) for i in map(lambda x: x.split('/')[-1].split('.jpg')[0], sample_files)]
@@ -424,15 +424,12 @@ class pix2pix(object):
             print(" [!] Load failed...")
 
         for i, sample_image in enumerate(sample_images):
-            idx = i+1
+            idx = i
             print("sampling image ", idx)
             samples = self.sess.run(
                 self.fake_B_sample,
                 feed_dict={self.real_data: sample_image}
             )
-            save_images(samples, [self.batch_size, 1],
-                        './{}/test_{:04d}.png'.format(args.test_dir, idx))
-            save_images(sample_image[:,:,:,3:6], [self.batch_size, 1],
-                        './{}/label_{:04}.png'.format(args.test_dir, idx))
-            save_images(sample_image[:,:,:,0:3], [sefl.batch_size, 1],
-                        './{}/image_{:04}.png'.format(args.test_dir, idx))
+            save_lip_images(samples, self.batch_size, idx, 'result', sample_files)
+            save_lip_images(sample_image[:,:,:,3:4], self.batch_size, idx, 'gt', sample_files)
+            # save_lip_images(sample_image[:,:,:,0:3], self.batch_size, idx, 'image', sample_files)
