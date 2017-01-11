@@ -394,11 +394,14 @@ class pix2pix(object):
         """Test pix2pix"""
         tf.initialize_all_variables().run()
 
-        sample_files = glob('./datasets/human/val/*.jpg'.format(self.dataset_name))
+        #sample_files = glob('./datasets/human/val/*.jpg'.format(self.dataset_name))
+        with open('./dataset/human/list/test_rgb_id.txt', 'r') as list_file:
+            lines = list_file.readlines()
+        sample_file = np.random.choice(lines, 100)
 
         # sort testing input
-        n = [int(i) for i in map(lambda x: x.split('/')[-1].split('.jpg')[0], sample_files)]
-        sample_files = [x for (y, x) in sorted(zip(n, sample_files))]
+        #n = [int(i) for i in map(lambda x: x.split('/')[-1].split('.jpg')[0], sample_files)]
+        #sample_files = [x for (y, x) in sorted(zip(n, sample_files))]
 
         # load testing input
         print("Loading testing images ...")
@@ -429,3 +432,7 @@ class pix2pix(object):
             )
             save_images(samples, [self.batch_size, 1],
                         './{}/test_{:04d}.png'.format(args.test_dir, idx))
+            save_images(sample_image[:,:,:,3:6], [self.batch_size, 1],
+                        './{}/label_{:04}.png'.format(args.test_dir, idx))
+            save_images(sample_image[:,:,:,0:3], [sefl.batch_size, 1],
+                        './{}/image_{:04}.png'.format(args.test_dir, idx))
