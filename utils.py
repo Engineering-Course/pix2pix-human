@@ -39,23 +39,50 @@ def load_image(image_path):
 
 #---------------------------------
 # new added function for lip dataset
-def load_lip_data(image_id, flip=True, is_test=False):
+def load_lip_data(image_id, flip=False, is_test=False):
     image_id = image_id[:-1] 
-    image_path = './datasets/human/images/{}.jpg'.format(image_id)
-    label_path = './datasets/human/masks/{}.png'.format(image_id)
-    img_A = imread(image_path)
-    img_B = imread(label_path)
-
-    img_A, img_B = preprocess_A_and_B(img_A, img_B, flip=flip, is_test=is_test)
+    image_path = './datasets/human/masks/{}.png'.format(image_id)
+    label_path = './datasets/human/pose/{}.png'.format(image_id)
+    img_A = scipy.misc.imread(image_path).astype(np.float)
+    img_B = scipy.misc.imread(label_path).astype(np.int)
+    # print image_id
+    # print img_B.shape
+    img_A, img_B = preprocess_lip_A_and_B(img_A, img_B, flip=False, is_test=False)
 
     img_A = img_A/127.5 - 1.
-    img_B = img_B/127.5 - 1.
 
-    img_AB = np.concatenate((img_A, img_B), axis=2)
+    img_AB = np.concatenate((img_A, img_B[..., np.newaxis]), axis=2)
     # img_AB shape: (fine_size, fine_size, input_c_dim + output_c_dim)
     return img_AB
 
 #------------------------------------------------------------
+def preprocess_lip_A_and_B(img_A, img_B, load_size=286, fine_size=256, flip=False, is_test=False):
+    if is_test:
+        img_A = scipy.misc.imresize(img_A, [fine_size, fine_size])
+        img_B = scipy.misc.imresize(img_B, [fine_size, fine_size])
+    else:
+        load_size = fine_size
+        img_A = scipy.misc.imresize(img_A, [load_size, load_size])
+
+        reimg_B = np.zeros((load_size, load_size), dtype=np.int)
+        for i in xrange(img_B.shape[0]):
+            for j in xrange(img_B.shape[1]):
+                if img_B[i,j] != 0:
+                    reimg_B[int(load_size*1.0/img_B.shape[0]*i), 
+                            int(load_size*1.0/img_B.shape[1]*j)] = img_B[i,j]
+                    # print ('i: %d, j: %d, id: %d'%(i, j, img_B[i,j]))
+
+        # h1 = int(np.ceil(np.random.uniform(1e-2, load_size-fine_size)))
+        # w1 = int(np.ceil(np.random.uniform(1e-2, load_size-fine_size)))
+        # img_A = img_A[h1:h1+fine_size, w1:w1+fine_size]
+        # reimg_B = reimg_B[h1:h1+fine_size, w1:w1+fine_size]
+
+        # if flip and np.random.random() > 0.5:
+        #     img_A = np.fliplr(img_A)
+        #     reimg_B = np.fliplr(reimg_B)
+
+    return img_A, reimg_B
+
 def preprocess_A_and_B(img_A, img_B, load_size=286, fine_size=256, flip=True, is_test=False):
     if is_test:
         img_A = scipy.misc.imresize(img_A, [fine_size, fine_size])

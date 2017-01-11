@@ -13,7 +13,7 @@ class pix2pix(object):
     def __init__(self, sess, image_size=256,
                  batch_size=1, sample_size=1, output_size=256,
                  gf_dim=64, df_dim=64, L1_lambda=100,
-                 input_c_dim=3, output_c_dim=3, dataset_name='facades',
+                 input_c_dim=3, output_c_dim=1, dataset_name='facades',
                  checkpoint_dir=None, sample_dir=None):
         """
 
@@ -71,14 +71,18 @@ class pix2pix(object):
                                         [self.batch_size, self.image_size, self.image_size,
                                          self.input_c_dim + self.output_c_dim],
                                         name='real_A_and_B_images')
+        # real_B: label
+        # real_A: real image
 
-        self.real_B = self.real_data[:, :, :, :self.input_c_dim]
-        self.real_A = self.real_data[:, :, :, self.input_c_dim:self.input_c_dim + self.output_c_dim]
+        self.real_A = self.real_data[:, :, :, :self.input_c_dim]
+        self.real_B = self.real_data[:, :, :, self.input_c_dim:self.input_c_dim + self.output_c_dim]
 
         self.fake_B = self.generator(self.real_A)
 
         self.real_AB = tf.concat(3, [self.real_A, self.real_B])
         self.fake_AB = tf.concat(3, [self.real_A, self.fake_B])
+        # print self.real_AB.get_shape()
+        # print self.fake_AB.get_shape()
         self.D, self.D_logits = self.discriminator(self.real_AB, reuse=False)
         self.D_, self.D_logits_ = self.discriminator(self.fake_AB, reuse=True)
 
@@ -112,7 +116,8 @@ class pix2pix(object):
     def load_random_samples(self):
         #data = np.random.choice(glob('./datasets/{}/images/*.jpg'.format(self.dataset_name)), self.batch_size)
         with open('./datasets/human/list/val_rgb_id.txt', 'r') as list_file:
-            data = list_file.readlines()
+            lines = list_file.readlines()
+        data = np.random.choice(lines, self.batch_size)
         sample = [load_lip_data(sample_file) for sample_file in data]
 
         if (self.is_grayscale):
@@ -162,6 +167,7 @@ class pix2pix(object):
             for idx in xrange(0, batch_idxs):
                 batch_files = data[idx*self.batch_size:(idx+1)*self.batch_size]
                 batch = [load_lip_data(batch_file) for batch_file in batch_files]
+
                 if (self.is_grayscale):
                     batch_images = np.array(batch).astype(np.float32)[:, :, :, None]
                 else:
@@ -191,7 +197,7 @@ class pix2pix(object):
                     % (epoch, idx, batch_idxs,
                         time.time() - start_time, errD_fake+errD_real, errG))
 
-                if np.mod(counter, 100) == 1:
+                if np.mod(counter, 500) == 1:
                     self.sample_model(args.sample_dir, epoch, idx)
 
                 if np.mod(counter, 500) == 2:
