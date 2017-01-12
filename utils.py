@@ -111,25 +111,22 @@ def preprocess_A_and_B(img_A, img_B, load_size=286, fine_size=256, flip=True, is
 # -----------------------------
 
 # new added function for lip dataset
-def save_lip_images(images, batch_size, sample_files, batch_idx=0):
+def save_lip_images(images, batch_size, sample_files, output_set, batch_idx=0):
     # images = inverse_transform(images)
+    print images.shape
     for i, image in enumerate(images):
         img_id = sample_files[batch_size * batch_idx + i][:-1]
         image_path = './datasets/human/masks/{}.png'.format(img_id)
         img_A = scipy.misc.imread(image_path).astype(np.float)
         rows = img_A.shape[0]
         cols = img_A.shape[1]
-        with open('./test/pose/{}.txt'.format(img_id), 'w') as f:
+        with open('./{}/pose/{}.txt'.format(output_set, img_id), 'w') as f:
             for p in xrange(image.shape[2]):
                 channel_ = image[:,:,p]
-                if (np.abs(channel_.max()) < 1e-5):
-                    r_ = 0
-                    c_ = 0
-                else:
-                    r_, c_ = np.where(channel_ == channel_.max())
-                    r_ = r_ * rows * 1.0 / channel_[0]
-                    c_ = c_ * cols * 1.0 / channel_[1]
-                f.write(str(r_) + ' ' + str(c_) + ' ')
+                r_, c_ = np.unravel_index(channel_.argmax(), channel_.shape)
+                r_ = r_ * rows * 1.0 / channel_.shape[0]
+                c_ = c_ * cols * 1.0 / channel_.shape[1]
+                f.write('%d %d ' % (int(r_), int(c_)))
         # path = './test/{}_{}.png'.format(preffix, sample_files[batch_size * batch_idx + i][:-1])
         # cv2.imwrite(path, np.squeeze(image))
         # scipy.misc.imsave(path, np.squeeze(image))
