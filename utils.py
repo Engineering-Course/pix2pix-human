@@ -126,7 +126,7 @@ def save_lip_images(images, batch_size, sample_files, output_set, batch_idx=0):
                 r_, c_ = np.unravel_index(channel_.argmax(), channel_.shape)
                 r_ = r_ * rows * 1.0 / channel_.shape[0]
                 c_ = c_ * cols * 1.0 / channel_.shape[1]
-                f.write('%d %d ' % (int(r_), int(c_)))
+                f.write('%d %d ' % (int(c_), int(r_)))
         # path = './test/{}_{}.png'.format(preffix, sample_files[batch_size * batch_idx + i][:-1])
         # cv2.imwrite(path, np.squeeze(image))
         # scipy.misc.imsave(path, np.squeeze(image))
