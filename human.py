@@ -366,7 +366,7 @@ class pix2pix(object):
         with open('./datasets/human/list/test_rgb_id.txt', 'r') as list_file:
             lines = list_file.readlines()
         # sample_files = lines[0:8]
-        sample_files = np.random.choice(lines, 20)
+        sample_files = np.random.choice(lines, 8)
 
         # sort testing input
         #n = [int(i) for i in map(lambda x: x.split('/')[-1].split('.jpg')[0], sample_files)]
