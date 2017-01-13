@@ -199,10 +199,10 @@ class pix2pix(object):
                     % (epoch, idx, batch_idxs,
                         time.time() - start_time, errD_fake+errD_real, errG))
 
-                if np.mod(counter, 500) == 1:
+                if np.mod(counter, 1000) == 1:
                     self.sample_model(args.sample_dir, epoch, idx)
 
-                if np.mod(counter, 500) == 2:
+                if np.mod(counter, 1000) == 2:
                     self.save(args.checkpoint_dir, counter)
 
     def discriminator(self, image, y=None, reuse=False):
@@ -365,6 +365,7 @@ class pix2pix(object):
         #sample_files = glob('./datasets/human/val/*.jpg'.format(self.dataset_name))
         with open('./datasets/human/list/test_rgb_id.txt', 'r') as list_file:
             lines = list_file.readlines()
+        # sample_files = lines[0:8]
         sample_files = np.random.choice(lines, 20)
 
         # sort testing input

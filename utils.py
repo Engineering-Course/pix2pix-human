@@ -11,6 +11,7 @@ import numpy as np
 import cv2
 from time import gmtime, strftime
 from scipy.stats import multivariate_normal
+import scipy.io as sio 
 
 pp = pprint.PrettyPrinter()
 
@@ -65,12 +66,12 @@ def load_lip_data(image_id, flip=False, is_test=False):
             r_ = max(r_, 0)
             r_ = int(fine_size * 1.0 * r_ / rows)
             if c_ + r_ == 0:
+                img_B[:,:,int(idx / 2)] -= 1
                 continue
             var = multivariate_normal(mean=[r_, c_], cov=5)
             for i in xrange(fine_size):
                 for j in xrange(fine_size):
                     img_B[i, j, int(idx / 2)] = var.pdf([i, j]) * 10.0
-
     img_A = img_A/127.5 - 1.
     # print img_A.shape
     # print img_B.shape
@@ -127,6 +128,7 @@ def save_lip_images(images, batch_size, sample_files, output_set, batch_idx=0):
                 r_ = r_ * rows * 1.0 / channel_.shape[0]
                 c_ = c_ * cols * 1.0 / channel_.shape[1]
                 f.write('%d %d ' % (int(c_), int(r_)))
+        sio.savemat('./{}/pose/{}.mat'.format(output_set, img_id), {'result': image})
         # path = './test/{}_{}.png'.format(preffix, sample_files[batch_size * batch_idx + i][:-1])
         # cv2.imwrite(path, np.squeeze(image))
         # scipy.misc.imsave(path, np.squeeze(image))
