@@ -42,7 +42,7 @@ def load_image(image_path):
     return img_A, img_B
 
 #---------------------------------
-# new added function for lip dataset
+# new added function for lip dataset (task parsing to pose)
 def load_lip_data(image_id, flip=False, is_test=False):
     fine_size=64
     image_id = image_id[:-1] 
@@ -80,6 +80,42 @@ def load_lip_data(image_id, flip=False, is_test=False):
     # img_AB shape: (fine_size, fine_size, input_c_dim + output_c_dim)
     return img_AB
 
+# new added function for task, pose to parsing
+def load_lip_data_t2(image_id, flip=False, is_test=False):
+    fine_size=64
+    image_id = image_id[:-1] 
+    image_path = './datasets/human/masks/{}.png'.format(image_id)
+    img_A = scipy.misc.imread(image_path).astype(np.float)
+    rows = img_A.shape[0]
+    cols = img_A.shape[1]
+    img_A = scipy.misc.imresize(img_A, [fine_size, fine_size])
+    img_B = np.zeros((fine_size, fine_size), dtype=np.float64)
+    with open('./datasets/human/pose/{}.txt'.format(image_id), 'r') as f:
+        lines = f.readlines()
+    points = lines[0].split(',')
+    for idx, point in enumerate(points):
+        if idx % 2 == 0:
+            c_ = int(point)
+            c_ = min(c_, cols-1)
+            c_ = max(c_, 0)
+            c_ = int(fine_size * 1.0 * c_ / cols)
+        else:
+            r_ = int(point)
+            r_ = min(r_, rows-1)
+            r_ = max(r_, 0)
+            r_ = int(fine_size * 1.0 * r_ / rows)
+            if c_ + r_ == 0:
+                continue
+            var = multivariate_normal(mean=[r_, c_], cov=2)
+            for i in xrange(fine_size):
+                for j in xrange(fine_size):
+                    img_B[i, j] += var.pdf([i, j]) * 1.0
+    img_A = img_A/127.5 - 1.
+    img_BA = np.concatenate((img_B[:,:,np.newaxis], img_A), axis=2)
+    # print img_BA.shape
+    # img_AB shape: (fine_size, fine_size, input_c_dim + output_c_dim)
+    return img_BA
+
 #------------------------------------------------------------
 def preprocess_lip_A_and_B(img_A, fine_size=256, flip=False, is_test=False):
 
@@ -112,7 +148,7 @@ def preprocess_A_and_B(img_A, img_B, load_size=286, fine_size=256, flip=True, is
 
 # -----------------------------
 
-# new added function for lip dataset
+# new added function for lip dataset, saving pose
 def save_lip_images(images, batch_size, sample_files, output_set, batch_idx=0):
     # images = inverse_transform(images)
     print images.shape
@@ -140,6 +176,14 @@ def save_lip_images(images, batch_size, sample_files, output_set, batch_idx=0):
         # path = './test/{}_{}.png'.format(preffix, sample_files[batch_size * batch_idx + i][:-1])
         # cv2.imwrite(path, np.squeeze(image))
         # scipy.misc.imsave(path, np.squeeze(image))
+
+# new added function for lip dataset, saving parsing
+def save_lip_images_t2(images, batch_size, sample_files, output_set, batch_idx=0):
+    print images.shape
+    for i, image in enumerate(images):
+        img_id = sample_files[batch_size * batch_idx + i][:-1]
+        image_path = './{}/parsing/{}.png'.format(output_set, img_id)
+        scipy.misc.imsave(image_path, image)
 
 def get_image(image_path, image_size, is_crop=True, resize_w=64, is_grayscale = False):
     return transform(imread(image_path, is_grayscale), image_size, is_crop, resize_w)
