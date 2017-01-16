@@ -166,11 +166,11 @@ def save_lip_images(images, batch_size, sample_files, output_set, batch_idx=0):
                 r_ = r_ * rows * 1.0 / channel_.shape[0]
                 c_ = c_ * cols * 1.0 / channel_.shape[1]
                 f.write('%d %d ' % (int(c_), int(r_)))
-                # print ('id: {}, r_: {}, c_: {}'.format(p, r_, c_))
-                # plt.clf()
-                # plt.imshow(channel_.T)
-                # plt.show()
-                # wait = raw_input()
+                print ('id: {}, r_: {}, c_: {}'.format(p, r_, c_))
+                plt.clf()
+                plt.imshow(channel_.T)
+                plt.show()
+                wait = raw_input()
 
         sio.savemat('./{}/pose/{}.mat'.format(output_set, img_id), {'result': image})
         # path = './test/{}_{}.png'.format(preffix, sample_files[batch_size * batch_idx + i][:-1])

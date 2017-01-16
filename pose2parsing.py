@@ -133,8 +133,8 @@ class pix2pix(object):
             [self.fake_B_sample, self.d_loss, self.g_loss],
             feed_dict={self.real_data: sample_images}
         )
-        save_lip_images(samples, self.batch_size, sample_files, 'sample')
-        # save_lip_images(samples, [self.batch_size, 1],
+        save_lip_images_t2(samples, self.batch_size, sample_files, 'sample')
+        # save_lip_images_t2(samples, [self.batch_size, 1],
         #             './{}/train_{:02d}_{:04d}.png'.format(sample_dir, epoch, idx))
         print("[Sample] d_loss: {:.8f}, g_loss: {:.8f}".format(d_loss, g_loss))
 
@@ -399,6 +399,6 @@ class pix2pix(object):
                 self.fake_B_sample,
                 feed_dict={self.real_data: sample_image}
             )
-            save_lip_images(samples, self.batch_size, sample_files, 'test', idx)
-            # save_lip_images(sample_image[:,:,:,3:4], self.batch_size, idx, 'gt', sample_files)
-            # save_lip_images(sample_image[:,:,:,0:3], self.batch_size, idx, 'image', sample_files)
+            save_lip_images_t2(samples, self.batch_size, sample_files, 'test', idx)
+            # save_lip_images_t2(sample_image[:,:,:,3:4], self.batch_size, idx, 'gt', sample_files)
+            # save_lip_images_t2(sample_image[:,:,:,0:3], self.batch_size, idx, 'image', sample_files)
