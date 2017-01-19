@@ -43,7 +43,7 @@ def load_image(image_path):
 
 #---------------------------------
 # new added function for lip dataset (task parsing to pose)
-def load_lip_data(image_id, flip=False, is_test=False):
+def load_lip_data(image_id):
     parsing_size = 368
     pose_size = 46
     image_id = image_id[:-1] 
@@ -84,7 +84,6 @@ def load_lip_data(image_id, flip=False, is_test=False):
     parsing_g = parsing_g / 127.5 - 1.
     parsing_d = parsing_d / 127.5 - 1.
 
-    
     # scipy.misc.imshow(img_A)
     # img = img_B[:,:,0]
     # plt.clf()
@@ -171,7 +170,6 @@ def preprocess_A_and_B(img_A, img_B, load_size=286, fine_size=256, flip=True, is
 
 # new added function for lip dataset, saving pose
 def save_lip_images(images, batch_size, sample_files, output_set, batch_idx=0):
-    # images = inverse_transform(images)
     print images.shape
     for i, image in enumerate(images):
         img_id = sample_files[batch_size * batch_idx + i][:-1]
@@ -194,9 +192,6 @@ def save_lip_images(images, batch_size, sample_files, output_set, batch_idx=0):
                 # wait = raw_input()
 
         sio.savemat('./{}/pose/{}.mat'.format(output_set, img_id), {'result': image})
-        # path = './test/{}_{}.png'.format(preffix, sample_files[batch_size * batch_idx + i][:-1])
-        # cv2.imwrite(path, np.squeeze(image))
-        # scipy.misc.imsave(path, np.squeeze(image))
 
 # new added function for lip dataset, saving parsing
 def save_lip_images_t2(images, batch_size, sample_files, output_set, batch_idx=0):

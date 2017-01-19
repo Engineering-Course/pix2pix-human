@@ -43,21 +43,10 @@ class pix2pix(object):
         self.d_bn2 = batch_norm(name='d_bn2')
         self.d_bn3 = batch_norm(name='d_bn3')
 
+        self.g_bn_e1 = batch_norm(name='g_bn_e1')
         self.g_bn_e2 = batch_norm(name='g_bn_e2')
         self.g_bn_e3 = batch_norm(name='g_bn_e3')
         self.g_bn_e4 = batch_norm(name='g_bn_e4')
-        self.g_bn_e5 = batch_norm(name='g_bn_e5')
-        self.g_bn_e6 = batch_norm(name='g_bn_e6')
-        self.g_bn_e7 = batch_norm(name='g_bn_e7')
-        self.g_bn_e8 = batch_norm(name='g_bn_e8')
-
-        self.g_bn_d1 = batch_norm(name='g_bn_d1')
-        self.g_bn_d2 = batch_norm(name='g_bn_d2')
-        self.g_bn_d3 = batch_norm(name='g_bn_d3')
-        self.g_bn_d4 = batch_norm(name='g_bn_d4')
-        self.g_bn_d5 = batch_norm(name='g_bn_d5')
-        self.g_bn_d6 = batch_norm(name='g_bn_d6')
-        self.g_bn_d7 = batch_norm(name='g_bn_d7')
 
         self.dataset_name = dataset_name
         self.checkpoint_dir = checkpoint_dir
@@ -150,15 +139,20 @@ class pix2pix(object):
 
         self.saver = tf.train.Saver()
 
-
     def load_random_samples(self):
         with open('./datasets/human/list/val_rgb_id.txt', 'r') as list_file:
             lines = list_file.readlines()
         data = np.random.choice(lines, self.batch_size)
-        gen_sample, dis_sample = [load_lip_data(sample_file) for sample_file in data]
-        
-        sample_g = np.array(gen_sample).astype(np.float32)
-        sample_d = np.array(dis_sample).astype(np.float32)
+        batch_g = []
+        batch_d = []
+        # gen_sample, dis_sample = [load_lip_data(sample_file) for sample_file in data]
+        for batch_file in data:
+            g_, d_ = load_lip_data(batch_file)
+            batch_g.append(g_)
+            batch_d.append(d_)
+
+        sample_g = np.array(batch_g).astype(np.float32)
+        sample_d = np.array(batch_d).astype(np.float32)
 
         return sample_g, sample_d, data
 
@@ -177,6 +171,7 @@ class pix2pix(object):
                           .minimize(self.d_loss, var_list=self.d_vars)
         g_optim = tf.train.AdamOptimizer(args.lr, beta1=args.beta1) \
                           .minimize(self.g_loss, var_list=self.g_vars)
+
         tf.initialize_all_variables().run()
 
         self.g_sum = tf.merge_summary([self.d__sum,
@@ -264,8 +259,9 @@ class pix2pix(object):
 
         conv1_2 = tf.nn.conv2d(tf.nn.relu(conv1_1), self.weights['wc1_2'], strides=[1, 1, 1, 1], padding='SAME')
         conv1_2 = tf.reshape(tf.nn.bias_add(conv1_2, self.biases['bc1_2']), conv1_2.get_shape())
-        
-        pool1 = tf.nn.max_pool(tf.nn.relu(conv1_2), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+
+        e1 = self.g_bn_e1(conv1_2)
+        pool1 = tf.nn.max_pool(tf.nn.relu(e1), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
         
         conv2_1 = tf.nn.conv2d(tf.nn.relu(pool1), self.weights['wc2_1'], strides=[1, 1, 1, 1], padding='SAME')
         conv2_1 = tf.reshape(tf.nn.bias_add(conv2_1, self.biases['bc2_1']), conv2_1.get_shape())
@@ -273,7 +269,8 @@ class pix2pix(object):
         conv2_2 = tf.nn.conv2d(tf.nn.relu(conv2_1), self.weights['wc2_2'], strides=[1, 1, 1, 1], padding='SAME')
         conv2_2 = tf.reshape(tf.nn.bias_add(conv2_2, self.biases['bc2_2']), conv2_2.get_shape())
 
-        pool2 = tf.nn.max_pool(tf.nn.relu(conv2_2), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+        e2 = self.g_bn_e2(conv2_2)
+        pool2 = tf.nn.max_pool(tf.nn.relu(e2), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
         conv3_1 = tf.nn.conv2d(tf.nn.relu(pool2), self.weights['wc3_1'], strides=[1, 1, 1, 1], padding='SAME')
         conv3_1 = tf.reshape(tf.nn.bias_add(conv3_1, self.biases['bc3_1']), conv3_1.get_shape())
@@ -287,7 +284,8 @@ class pix2pix(object):
         conv3_4 = tf.nn.conv2d(tf.nn.relu(conv3_3), self.weights['wc3_4'], strides=[1, 1, 1, 1], padding='SAME')
         conv3_4 = tf.reshape(tf.nn.bias_add(conv3_4, self.biases['bc3_4']), conv3_4.get_shape())
 
-        pool3 = tf.nn.max_pool(tf.nn.relu(conv3_4), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+        e3 = self.g_bn_e3(conv3_4)
+        pool3 = tf.nn.max_pool(tf.nn.relu(e3), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
         conv4_1 = tf.nn.conv2d(tf.nn.relu(pool3), self.weights['wc4_1'], strides=[1, 1, 1, 1], padding='SAME')
         conv4_1 = tf.reshape(tf.nn.bias_add(conv4_1, self.biases['bc4_1']), conv4_1.get_shape())
@@ -310,7 +308,9 @@ class pix2pix(object):
         conv4_7 = tf.nn.conv2d(tf.nn.relu(conv4_6), self.weights['wc4_7'], strides=[1, 1, 1, 1], padding='SAME')
         conv4_7 = tf.reshape(tf.nn.bias_add(conv4_7, self.biases['bc4_7']), conv4_7.get_shape())
 
-        conv5_1 = tf.nn.conv2d(tf.nn.relu(conv4_7), self.weights['wc5_1'], strides=[1, 1, 1, 1], padding='SAME')
+        e4 = self.g_bn_e4(conv4_7)
+
+        conv5_1 = tf.nn.conv2d(tf.nn.relu(e4), self.weights['wc5_1'], strides=[1, 1, 1, 1], padding='SAME')
         conv5_1 = tf.reshape(tf.nn.bias_add(conv5_1, self.biases['bc5_1']), conv5_1.get_shape())
 
         conv5_2 = tf.nn.conv2d(tf.nn.relu(conv5_1), self.weights['wc5_2'], strides=[1, 1, 1, 1], padding='SAME')
@@ -327,7 +327,8 @@ class pix2pix(object):
         conv1_2 = tf.nn.conv2d(tf.nn.relu(conv1_1), self.weights['wc1_2'], strides=[1, 1, 1, 1], padding='SAME')
         conv1_2 = tf.reshape(tf.nn.bias_add(conv1_2, self.biases['bc1_2']), conv1_2.get_shape())
         
-        pool1 = tf.nn.max_pool(tf.nn.relu(conv1_2), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+        e1 = self.g_bn_e1(conv1_2)
+        pool1 = tf.nn.max_pool(tf.nn.relu(e1), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
         
         conv2_1 = tf.nn.conv2d(tf.nn.relu(pool1), self.weights['wc2_1'], strides=[1, 1, 1, 1], padding='SAME')
         conv2_1 = tf.reshape(tf.nn.bias_add(conv2_1, self.biases['bc2_1']), conv2_1.get_shape())
@@ -335,7 +336,8 @@ class pix2pix(object):
         conv2_2 = tf.nn.conv2d(tf.nn.relu(conv2_1), self.weights['wc2_2'], strides=[1, 1, 1, 1], padding='SAME')
         conv2_2 = tf.reshape(tf.nn.bias_add(conv2_2, self.biases['bc2_2']), conv2_2.get_shape())
 
-        pool2 = tf.nn.max_pool(tf.nn.relu(conv2_2), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+        e2 = self.g_bn_e2(conv2_2)
+        pool2 = tf.nn.max_pool(tf.nn.relu(e2), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
         conv3_1 = tf.nn.conv2d(tf.nn.relu(pool2), self.weights['wc3_1'], strides=[1, 1, 1, 1], padding='SAME')
         conv3_1 = tf.reshape(tf.nn.bias_add(conv3_1, self.biases['bc3_1']), conv3_1.get_shape())
@@ -349,7 +351,8 @@ class pix2pix(object):
         conv3_4 = tf.nn.conv2d(tf.nn.relu(conv3_3), self.weights['wc3_4'], strides=[1, 1, 1, 1], padding='SAME')
         conv3_4 = tf.reshape(tf.nn.bias_add(conv3_4, self.biases['bc3_4']), conv3_4.get_shape())
 
-        pool3 = tf.nn.max_pool(tf.nn.relu(conv3_4), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+        e3 = self.g_bn_e3(conv3_4)
+        pool3 = tf.nn.max_pool(tf.nn.relu(e3), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
         conv4_1 = tf.nn.conv2d(tf.nn.relu(pool3), self.weights['wc4_1'], strides=[1, 1, 1, 1], padding='SAME')
         conv4_1 = tf.reshape(tf.nn.bias_add(conv4_1, self.biases['bc4_1']), conv4_1.get_shape())
@@ -372,7 +375,9 @@ class pix2pix(object):
         conv4_7 = tf.nn.conv2d(tf.nn.relu(conv4_6), self.weights['wc4_7'], strides=[1, 1, 1, 1], padding='SAME')
         conv4_7 = tf.reshape(tf.nn.bias_add(conv4_7, self.biases['bc4_7']), conv4_7.get_shape())
 
-        conv5_1 = tf.nn.conv2d(tf.nn.relu(conv4_7), self.weights['wc5_1'], strides=[1, 1, 1, 1], padding='SAME')
+        e4 = self.g_bn_e4(conv4_7)
+
+        conv5_1 = tf.nn.conv2d(tf.nn.relu(e4), self.weights['wc5_1'], strides=[1, 1, 1, 1], padding='SAME')
         conv5_1 = tf.reshape(tf.nn.bias_add(conv5_1, self.biases['bc5_1']), conv5_1.get_shape())
 
         conv5_2 = tf.nn.conv2d(tf.nn.relu(conv5_1), self.weights['wc5_2'], strides=[1, 1, 1, 1], padding='SAME')
@@ -418,18 +423,25 @@ class pix2pix(object):
 
         # load testing input
         print("Loading testing images ...")
-        sample_g, sample_d = [load_lip_data(sample_file, is_test=True) for sample_file in sample_files]
+        # sample_g, sample_d = [load_lip_data(sample_file) for sample_file in sample_files]
+        batch_g = []
+        batch_d = []
+        for batch_file in sample_files:
+            g_, d_ = load_lip_data(batch_file)
+            batch_g.append(g_)
+            batch_d.append(d_)
 
-        sample_images_g = np.array(sample_g).astype(np.float32)
-        sample_images_d = np.array(sample_d).astype(np.float32)
+        sample_images_g = np.array(batch_g).astype(np.float32)
+        sample_images_d = np.array(batch_d).astype(np.float32)
 
         sample_images_g = [sample_images_g[i:i+self.batch_size]
-                         for i in xrange(0, len(sample_images_g), self.batch_size)]
+                           for i in xrange(0, len(sample_images_g), self.batch_size)]
         sample_images_g = np.array(sample_images_g)
         sample_images_d = [sample_images_d[i:i+self.batch_size]
-                         for i in xrange(0, len(sample_images_d), self.batch_size)]
+                           for i in xrange(0, len(sample_images_d), self.batch_size)]
         sample_images_d = np.array(sample_images_d)
         print(sample_images_g.shape)
+        print(sample_images_d.shape)
 
         start_time = time.time()
         if self.load(self.checkpoint_dir):
@@ -437,12 +449,13 @@ class pix2pix(object):
         else:
             print(" [!] Load failed...")
 
-        for i, g_, d_ in enumerate(sample_images_g, sample_images_d):
+        # for i, g_, d_ in enumerate(sample_images_g, sample_images_d):
+        for i in xrange(sample_images_g.shape[0]):
             idx = i
             print("sampling image ", idx)
             samples = self.sess.run(
                 self.fake_B_sample,
-                feed_dict={self.real_data: d_, self.gen_data: g_}
+                feed_dict={self.real_data: sample_images_d[i], self.gen_data: sample_images_g[i]}
             )
             save_lip_images(samples, self.batch_size, sample_files, 'test', idx)
 
