@@ -237,7 +237,6 @@ class pix2pix(object):
                     self.save(args.checkpoint_dir, counter)
 
     def discriminator(self, image, y=None, reuse=False):
-        # image is 64 x 64 x (input_c_dim + output_c_dim)
         if reuse:
             tf.get_variable_scope().reuse_variables()
         else:
