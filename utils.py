@@ -44,14 +44,20 @@ def load_image(image_path):
 #---------------------------------
 # new added function for lip dataset (task parsing to pose)
 def load_lip_data(image_id, flip=False, is_test=False):
-    fine_size=64
+    parsing_size = 368
+    pose_size = 46
     image_id = image_id[:-1] 
-    image_path = './datasets/human/masks/{}.png'.format(image_id)
-    img_A = scipy.misc.imread(image_path).astype(np.float)
-    rows = img_A.shape[0]
-    cols = img_A.shape[1]
-    img_A = scipy.misc.imresize(img_A, [fine_size, fine_size])
-    img_B = np.zeros((fine_size, fine_size, 16), dtype=np.float64)
+    image_path = './datasets/human/images/{}.jpg'.format(image_id)
+    img = scipy.misc.imread(image_path).astype(np.float)
+    parsing_path = './datasets/human/masks/{}.png'.format(image_id)
+    parsing = scipy.misc.imread(parsing_path).astype(np.float)
+    rows = img.shape[0]
+    cols = img.shape[1]
+    img = scipy.misc.imresize(img, [parsing_size, parsing_size])
+    parsing_g = scipy.misc.imresize(parsing, [parsing_size, parsing_size])
+    parsing_d = scipy.misc.imresize(parsing, [pose_size, pose_size])
+    heatmap = np.zeros((pose_size, pose_size, 16), dtype=np.float64)
+
     with open('./datasets/human/pose/{}.txt'.format(image_id), 'r') as f:
         lines = f.readlines()
     points = lines[0].split(',')
@@ -60,25 +66,40 @@ def load_lip_data(image_id, flip=False, is_test=False):
             c_ = int(point)
             c_ = min(c_, cols-1)
             c_ = max(c_, 0)
-            c_ = int(fine_size * 1.0 * c_ / cols)
+            c_ = int(pose_size * 1.0 * c_ / cols)
         else:
             r_ = int(point)
             r_ = min(r_, rows-1)
             r_ = max(r_, 0)
-            r_ = int(fine_size * 1.0 * r_ / rows)
+            r_ = int(pose_size * 1.0 * r_ / rows)
             if c_ + r_ == 0:
-                img_B[:,:,int(idx / 2)] = 0
+                heatmap[:,:,int(idx / 2)] = 0
                 continue
             var = multivariate_normal(mean=[r_, c_], cov=2)
-            for i in xrange(fine_size):
-                for j in xrange(fine_size):
-                    img_B[i, j, int(idx / 2)] = var.pdf([i, j]) * 10.0
-    img_A = img_A/127.5 - 1.
-    # print img_A.shape
-    # print img_B.shape
-    img_AB = np.concatenate((img_A, img_B), axis=2)
-    # img_AB shape: (fine_size, fine_size, input_c_dim + output_c_dim)
-    return img_AB
+            for i in xrange(pose_size):
+                for j in xrange(pose_size):
+                    heatmap[i, j, int(idx / 2)] = var.pdf([i, j]) * 10.0
+
+    img = img / 127.5 - 1.
+    parsing_g = parsing_g / 127.5 - 1.
+    parsing_d = parsing_d / 127.5 - 1.
+
+    
+    # scipy.misc.imshow(img_A)
+    # img = img_B[:,:,0]
+    # plt.clf()
+    # plt.figure(1)
+    # plt.imshow(img.T)
+    # # plt.show()
+    # img = scipy.misc.imresize(img, [pose_size, pose_size])
+    # plt.figure(2)
+    # plt.imshow(img.T)
+    # plt.show()
+    # wait = raw_input()
+    
+    img_g = np.concatenate((img, parsing_g), axis=2)
+    img_d = np.concatenate((parsing_d, heatmap), axis=2)
+    return img_g, img_d
 
 # new added function for task, pose to parsing
 def load_lip_data_t2(image_id, flip=False, is_test=False):
@@ -166,11 +187,11 @@ def save_lip_images(images, batch_size, sample_files, output_set, batch_idx=0):
                 r_ = r_ * rows * 1.0 / channel_.shape[0]
                 c_ = c_ * cols * 1.0 / channel_.shape[1]
                 f.write('%d %d ' % (int(c_), int(r_)))
-                print ('id: {}, r_: {}, c_: {}'.format(p, r_, c_))
-                plt.clf()
-                plt.imshow(channel_.T)
-                plt.show()
-                wait = raw_input()
+                # print ('id: {}, r_: {}, c_: {}'.format(p, r_, c_))
+                # plt.clf()
+                # plt.imshow(channel_.T)
+                # plt.show()
+                # wait = raw_input()
 
         sio.savemat('./{}/pose/{}.mat'.format(output_set, img_id), {'result': image})
         # path = './test/{}_{}.png'.format(preffix, sample_files[batch_size * batch_idx + i][:-1])
