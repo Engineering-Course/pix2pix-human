@@ -165,7 +165,7 @@ class pix2pix(object):
         save_lip_images(samples, self.batch_size, sample_files, 'sample')
 
         pose_gt = sample_d[:, :, :, self.input_c_dim:self.input_c_dim + self.output_c_dim]
-        error_sum = tf.sqrt(tf.nn.l2_loss((samples - pose_gt))).eval()
+        error_sum = np.linalg.norm(samples - pose_gt)
         print("l2 loss: {:.8f}.".format(error_sum / self.batch_size))
         print("[Sample] d_loss: {:.8f}, g_loss: {:.8f}".format(d_loss, g_loss))
 
@@ -464,7 +464,7 @@ class pix2pix(object):
             save_lip_images(samples, self.batch_size, sample_files, 'test', idx)
 
             pose_gt = sample_images_d[i][:, :, :, self.input_c_dim:self.input_c_dim + self.output_c_dim]
-            error_sum += tf.sqrt(tf.nn.l2_loss((samples - pose_gt))).eval()
+            error_sum += np.linalg.norm(samples - pose_gt)
         print error_sum / self.batch_size / sample_images_g.shape[0]
 
 
