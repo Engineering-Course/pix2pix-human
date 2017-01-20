@@ -170,17 +170,20 @@ def preprocess_A_and_B(img_A, img_B, load_size=286, fine_size=256, flip=True, is
 
 # new added function for lip dataset, saving pose
 def save_lip_images(images, batch_size, sample_files, output_set, batch_idx=0):
-    print images.shape
+    # print images.shape
     for i, image in enumerate(images):
         img_id = sample_files[batch_size * batch_idx + i][:-1]
         image_path = './datasets/human/masks/{}.png'.format(img_id)
-        print img_id
+        # print img_id
         img_A = scipy.misc.imread(image_path).astype(np.float)
         rows = img_A.shape[0]
         cols = img_A.shape[1]
         with open('./{}/pose/{}.txt'.format(output_set, img_id), 'w') as f:
             for p in xrange(image.shape[2]):
                 channel_ = image[:,:,p]
+                # if sum(sum(channel_)) < 0:
+                #     f.write('%d %d ' % (int(0), int(0)))
+                # else:
                 r_, c_ = np.unravel_index(channel_.argmax(), channel_.shape)
                 r_ = r_ * rows * 1.0 / channel_.shape[0]
                 c_ = c_ * cols * 1.0 / channel_.shape[1]

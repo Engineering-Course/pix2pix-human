@@ -163,6 +163,10 @@ class pix2pix(object):
             feed_dict={self.real_data: sample_d, self.gen_data: sample_g}
         )
         save_lip_images(samples, self.batch_size, sample_files, 'sample')
+
+        pose_gt = sample_d[:, :, :, self.input_c_dim:self.input_c_dim + self.output_c_dim]
+        error_sum = tf.sqrt(tf.nn.l2_loss((samples - pose_gt))).eval()
+        print("l2 loss: {:.8f}.".format(error_sum / self.batch_size))
         print("[Sample] d_loss: {:.8f}, g_loss: {:.8f}".format(d_loss, g_loss))
 
     def train(self, args):
@@ -230,7 +234,7 @@ class pix2pix(object):
                     % (epoch, idx, batch_idxs,
                         time.time() - start_time, errD_fake+errD_real, errG))
 
-                if np.mod(counter, 1000) == 1:
+                if np.mod(counter, 100) == 1:
                     self.sample_model(args.sample_dir, epoch, idx)
 
                 if np.mod(counter, 1000) == 2:
@@ -418,7 +422,7 @@ class pix2pix(object):
         with open('./datasets/human/list/test_rgb_id.txt', 'r') as list_file:
             lines = list_file.readlines()
         # sample_files = lines[0:8]
-        sample_files = np.random.choice(lines, 8)
+        sample_files = np.random.choice(lines, 80)
 
         # load testing input
         print("Loading testing images ...")
@@ -449,6 +453,7 @@ class pix2pix(object):
             print(" [!] Load failed...")
 
         # for i, g_, d_ in enumerate(sample_images_g, sample_images_d):
+        error_sum = 0
         for i in xrange(sample_images_g.shape[0]):
             idx = i
             print("sampling image ", idx)
@@ -457,4 +462,11 @@ class pix2pix(object):
                 feed_dict={self.real_data: sample_images_d[i], self.gen_data: sample_images_g[i]}
             )
             save_lip_images(samples, self.batch_size, sample_files, 'test', idx)
+
+            pose_gt = sample_images_d[i][:, :, :, self.input_c_dim:self.input_c_dim + self.output_c_dim]
+            error_sum += tf.sqrt(tf.nn.l2_loss((samples - pose_gt))).eval()
+        print error_sum / self.batch_size / sample_images_g.shape[0]
+
+
+
 
