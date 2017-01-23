@@ -134,7 +134,7 @@ class pix2pix(object):
             heatmap = self.fake_B[:,:,:,i]
             fake_Pi = self.generator_pose(heatmap[:,:,:,np.newaxis])
             self.fake_P.append(fake_Pi)
-            self.g_loss += tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=fake_Pi, targets=self.point_data[:,i:i+1]))
+            self.g_loss += self.L2_lambda * tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=fake_Pi, targets=self.point_data[:,i:i+1]))
         # print fake_P
 
         self.d_loss_real_sum = tf.scalar_summary("d_loss_real", self.d_loss_real)
