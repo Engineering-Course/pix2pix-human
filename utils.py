@@ -57,7 +57,7 @@ def load_lip_data(image_id):
     parsing_g = scipy.misc.imresize(parsing, [parsing_size, parsing_size])
     parsing_d = scipy.misc.imresize(parsing, [pose_size, pose_size])
     heatmap = np.zeros((pose_size, pose_size, 16), dtype=np.float64)
-
+    pid = np.zeros((16), dtype=np.int)
     with open('./datasets/human/pose/{}.txt'.format(image_id), 'r') as f:
         lines = f.readlines()
     points = lines[0].split(',')
@@ -74,8 +74,10 @@ def load_lip_data(image_id):
             r_ = int(pose_size * 1.0 * r_ / rows)
             if c_ + r_ == 0:
                 heatmap[:,:,int(idx / 2)] = 0
+                pid[int(idx/2)] = 0
                 continue
             var = multivariate_normal(mean=[r_, c_], cov=2)
+            pid[int(idx/2)] = 1
             for i in xrange(pose_size):
                 for j in xrange(pose_size):
                     heatmap[i, j, int(idx / 2)] = var.pdf([i, j]) * 10.0
@@ -83,22 +85,10 @@ def load_lip_data(image_id):
     img = img / 127.5 - 1.
     parsing_g = parsing_g / 127.5 - 1.
     parsing_d = parsing_d / 127.5 - 1.
-
-    # scipy.misc.imshow(img_A)
-    # img = img_B[:,:,0]
-    # plt.clf()
-    # plt.figure(1)
-    # plt.imshow(img.T)
-    # # plt.show()
-    # img = scipy.misc.imresize(img, [pose_size, pose_size])
-    # plt.figure(2)
-    # plt.imshow(img.T)
-    # plt.show()
-    # wait = raw_input()
     
     img_g = np.concatenate((img, parsing_g), axis=2)
     img_d = np.concatenate((parsing_d, heatmap), axis=2)
-    return img_g, img_d
+    return img_g, img_d, pid
 
 # new added function for task, pose to parsing
 def load_lip_data_t2(image_id, flip=False, is_test=False):
@@ -169,8 +159,8 @@ def preprocess_A_and_B(img_A, img_B, load_size=286, fine_size=256, flip=True, is
 # -----------------------------
 
 # new added function for lip dataset, saving pose
-def save_lip_images(images, batch_size, sample_files, output_set, batch_idx=0):
-    # print images.shape
+def save_lip_images(images, points, batch_size, sample_files, output_set, batch_idx=0):
+    print images.shape
     for i, image in enumerate(images):
         img_id = sample_files[batch_size * batch_idx + i][:-1]
         image_path = './datasets/human/masks/{}.png'.format(img_id)
@@ -181,13 +171,14 @@ def save_lip_images(images, batch_size, sample_files, output_set, batch_idx=0):
         with open('./{}/pose/{}.txt'.format(output_set, img_id), 'w') as f:
             for p in xrange(image.shape[2]):
                 channel_ = image[:,:,p]
-                # if sum(sum(channel_)) < 0:
-                #     f.write('%d %d ' % (int(0), int(0)))
-                # else:
-                r_, c_ = np.unravel_index(channel_.argmax(), channel_.shape)
-                r_ = r_ * rows * 1.0 / channel_.shape[0]
-                c_ = c_ * cols * 1.0 / channel_.shape[1]
-                f.write('%d %d ' % (int(c_), int(r_)))
+                p_ = points[p][i]
+                if p_ < 0.3:
+                    f.write('%d %d ' % (int(0), int(0)))
+                else:
+                    r_, c_ = np.unravel_index(channel_.argmax(), channel_.shape)
+                    r_ = r_ * rows * 1.0 / channel_.shape[0]
+                    c_ = c_ * cols * 1.0 / channel_.shape[1]
+                    f.write('%d %d ' % (int(c_), int(r_)))
                 # print ('id: {}, r_: {}, c_: {}'.format(p, r_, c_))
                 # plt.clf()
                 # plt.imshow(channel_.T)

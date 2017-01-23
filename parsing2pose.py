@@ -68,7 +68,9 @@ class pix2pix(object):
             'wc4_6': tf.Variable(tf.truncated_normal([3, 3, 256, 256], stddev=0.01), name='wc4_6'),
             'wc4_7': tf.Variable(tf.truncated_normal([3, 3, 256, 128], stddev=0.01), name='wc4_7'),
             'wc5_1': tf.Variable(tf.truncated_normal([1, 1, 128, 512], stddev=0.01), name='wc5_1'),
-            'wc5_2': tf.Variable(tf.truncated_normal([1, 1, 512, 16], stddev=0.01), name='wc5_2')
+            'wc5_2': tf.Variable(tf.truncated_normal([1, 1, 512, 16], stddev=0.01), name='wc5_2'),
+            'fc6_1': tf.Variable(tf.truncated_normal([23*23, 1024], stddev=0.01), name='fc6_1'),
+            'fc6_2': tf.Variable(tf.truncated_normal([1024, 1], stddev=0.01), name='fc6_2')
         }
         self.biases = {
             'bc1_1': tf.Variable(tf.constant(0.0, shape=[64]), name='bc1_1'),
@@ -87,7 +89,9 @@ class pix2pix(object):
             'bc4_6': tf.Variable(tf.constant(0.0, shape=[256]), name='bc4_6'),
             'bc4_7': tf.Variable(tf.constant(0.0, shape=[128]), name='bc4_7'),
             'bc5_1': tf.Variable(tf.constant(0.0, shape=[512]), name='bc5_1'),
-            'bc5_2': tf.Variable(tf.constant(0.0, shape=[16]), name='bc5_2')
+            'bc5_2': tf.Variable(tf.constant(0.0, shape=[16]), name='bc5_2'),
+            'bc6_1': tf.Variable(tf.constant(0.0, shape=[1024]), name='bc6_1'),
+            'bc6_2': tf.Variable(tf.constant(0.0, shape=[1]), name='bc6_2'),
         }
         self.build_model()
 
@@ -100,6 +104,7 @@ class pix2pix(object):
                                         [self.batch_size, self.pose_size, self.pose_size,
                                          self.input_c_dim + self.output_c_dim],
                                         name='real_A_and_B_images')
+        self.point_data = tf.placeholder(tf.float32, [self.batch_size, 16], name='point_label')
 
         self.real_A = self.real_data[:, :, :, :self.input_c_dim]
         self.real_B = self.real_data[:, :, :, self.input_c_dim:self.input_c_dim + self.output_c_dim]
@@ -124,6 +129,14 @@ class pix2pix(object):
                         + self.L2_lambda * tf.reduce_mean(tf.sqrt(tf.nn.l2_loss((self.real_B - self.fake_B))))
                         # + self.L1_lambda * tf.reduce_mean(tf.abs(self.real_B - self.fake_B))
 
+        self.fake_P = []
+        for i in xrange(16):
+            heatmap = self.fake_B[:,:,:,i]
+            fake_Pi = self.generator_pose(heatmap[:,:,:,np.newaxis])
+            self.fake_P.append(fake_Pi)
+            self.g_loss += tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=fake_Pi, targets=self.point_data[:,i:i+1]))
+        # print fake_P
+
         self.d_loss_real_sum = tf.scalar_summary("d_loss_real", self.d_loss_real)
         self.d_loss_fake_sum = tf.scalar_summary("d_loss_fake", self.d_loss_fake)
 
@@ -145,24 +158,25 @@ class pix2pix(object):
         data = np.random.choice(lines, self.batch_size)
         batch_g = []
         batch_d = []
+        batch_p = []
         # gen_sample, dis_sample = [load_lip_data(sample_file) for sample_file in data]
         for batch_file in data:
-            g_, d_ = load_lip_data(batch_file)
+            g_, d_, p_ = load_lip_data(batch_file)
             batch_g.append(g_)
             batch_d.append(d_)
+            batch_p.append(p_)
 
         sample_g = np.array(batch_g).astype(np.float32)
         sample_d = np.array(batch_d).astype(np.float32)
 
-        return sample_g, sample_d, data
+        return sample_g, sample_d, batch_p, data
 
     def sample_model(self, sample_dir, epoch, idx):
-        sample_g, sample_d, sample_files = self.load_random_samples()
-        samples, d_loss, g_loss = self.sess.run(
-            [self.fake_B_sample, self.d_loss, self.g_loss],
-            feed_dict={self.real_data: sample_d, self.gen_data: sample_g}
-        )
-        save_lip_images(samples, self.batch_size, sample_files, 'sample')
+        sample_g, sample_d, batch_p, sample_files = self.load_random_samples()
+        samples, samples_p, d_loss, g_loss = self.sess.run(
+            [self.fake_B_sample, self.fake_P, self.d_loss, self.g_loss],
+            feed_dict={self.real_data: sample_d, self.gen_data: sample_g, self.point_data: batch_p})
+        save_lip_images(samples, samples_p, self.batch_size, sample_files, 'sample')
 
         pose_gt = sample_d[:, :, :, self.input_c_dim:self.input_c_dim + self.output_c_dim]
         error_sum = np.linalg.norm(samples - pose_gt)
@@ -201,33 +215,41 @@ class pix2pix(object):
                 batch_files = data[idx*self.batch_size:(idx+1)*self.batch_size]
                 batch_g = []
                 batch_d = []
+                batch_p = []
                 # batch_g, batch_d = [load_lip_data(batch_file) for batch_file in batch_files]
                 for batch_file in batch_files:
-                    g_, d_ = load_lip_data(batch_file)
+                    g_, d_, p_ = load_lip_data(batch_file)
                     batch_g.append(g_)
                     batch_d.append(d_)
+                    batch_p.append(p_)
 
                 batch_images_g = np.array(batch_g).astype(np.float32)
                 batch_images_d = np.array(batch_d).astype(np.float32)
 
                 # Update D network
                 _, summary_str = self.sess.run([d_optim, self.d_sum],
-                                               feed_dict={ self.real_data: batch_images_d, self.gen_data: batch_images_g })
+                                               feed_dict={ self.real_data: batch_images_d, self.gen_data: batch_images_g, 
+                                                           self.point_data: batch_p})
                 self.writer.add_summary(summary_str, counter)
 
                 # Update G network
                 _, summary_str = self.sess.run([g_optim, self.g_sum],
-                                               feed_dict={ self.real_data: batch_images_d, self.gen_data: batch_images_g })
+                                               feed_dict={ self.real_data: batch_images_d, self.gen_data: batch_images_g, 
+                                                           self.point_data: batch_p})
                 self.writer.add_summary(summary_str, counter)
 
                 # Run g_optim twice to make sure that d_loss does not go to zero (different from paper)
                 _, summary_str = self.sess.run([g_optim, self.g_sum],
-                                               feed_dict={ self.real_data: batch_images_d, self.gen_data: batch_images_g })
+                                               feed_dict={ self.real_data: batch_images_d, self.gen_data: batch_images_g, 
+                                                           self.point_data: batch_p})
                 self.writer.add_summary(summary_str, counter)
 
-                errD_fake = self.d_loss_fake.eval({self.real_data: batch_images_d, self.gen_data: batch_images_g})
-                errD_real = self.d_loss_real.eval({self.real_data: batch_images_d, self.gen_data: batch_images_g})
-                errG = self.g_loss.eval({self.real_data: batch_images_d, self.gen_data: batch_images_g})
+                errD_fake = self.d_loss_fake.eval({self.real_data: batch_images_d, self.gen_data: batch_images_g, 
+                                                           self.point_data: batch_p})
+                errD_real = self.d_loss_real.eval({self.real_data: batch_images_d, self.gen_data: batch_images_g, 
+                                                           self.point_data: batch_p})
+                errG = self.g_loss.eval({self.real_data: batch_images_d, self.gen_data: batch_images_g, 
+                                                           self.point_data: batch_p})
 
                 counter += 1
                 print("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss: %.8f, g_loss: %.8f" \
@@ -320,6 +342,27 @@ class pix2pix(object):
         conv5_2 = tf.reshape(tf.nn.bias_add(conv5_2, self.biases['bc5_2']), conv5_2.get_shape())
 
         return conv5_2
+
+    def generator_pose(self, image, y=None):
+        
+        pool4 = tf.nn.max_pool(tf.nn.relu(image), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+        fc6_1 = tf.reshape(pool4, [-1, self.weights['fc6_1'].get_shape().as_list()[0]])
+        fc6_1 = tf.add(tf.matmul(fc6_1, self.weights['fc6_1']), self.biases['bc6_1'])
+        fc6_1 = tf.nn.dropout(tf.nn.relu(fc6_1), 0.5)
+        fc6_2 = tf.add(tf.matmul(fc6_1, self.weights['fc6_2']), self.biases['bc6_2'])
+
+        return tf.nn.sigmoid(fc6_2)
+
+    def sampler_pose(self, image, y=None):
+        tf.get_variable_scope().reuse_variables()
+
+        pool4 = tf.nn.max_pool(tf.nn.relu(image), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+        fc6_1 = tf.reshape(pool4, [-1, self.weights['fc6_1'].get_shape().as_list()[0]])
+        fc6_1 = tf.add(tf.matmul(fc6_1, self.weights['fc6_1']), self.biases['bc6_1'])
+        fc6_1 = tf.nn.dropout(tf.nn.relu(fc6_1), 0.5)
+        fc6_2 = tf.add(tf.matmul(fc6_1, self.weights['fc6_2']), self.biases['bc6_2'])
+
+        return tf.nn.sigmoid(fc6_2)
 
     def sampler(self, image, y=None):
         tf.get_variable_scope().reuse_variables()
@@ -422,17 +465,19 @@ class pix2pix(object):
         with open('./datasets/human/list/test_rgb_id.txt', 'r') as list_file:
             lines = list_file.readlines()
         # sample_files = lines[0:8]
-        sample_files = np.random.choice(lines, 80)
+        sample_files = np.random.choice(lines, 4)
 
         # load testing input
         print("Loading testing images ...")
         # sample_g, sample_d = [load_lip_data(sample_file) for sample_file in sample_files]
         batch_g = []
         batch_d = []
+        batch_p = []
         for batch_file in sample_files:
-            g_, d_ = load_lip_data(batch_file)
+            g_, d_, p_ = load_lip_data(batch_file)
             batch_g.append(g_)
             batch_d.append(d_)
+            batch_p.append(p_)
 
         sample_images_g = np.array(batch_g).astype(np.float32)
         sample_images_d = np.array(batch_d).astype(np.float32)
@@ -443,8 +488,9 @@ class pix2pix(object):
         sample_images_d = [sample_images_d[i:i+self.batch_size]
                            for i in xrange(0, len(sample_images_d), self.batch_size)]
         sample_images_d = np.array(sample_images_d)
-        print(sample_images_g.shape)
-        print(sample_images_d.shape)
+        sample_p = [batch_p[i:i+self.batch_size] for i in xrange(0, len(batch_p), self.batch_size)]
+        # print(sample_images_g.shape)
+        # print(sample_images_d.shape)
 
         start_time = time.time()
         if self.load(self.checkpoint_dir):
@@ -457,11 +503,12 @@ class pix2pix(object):
         for i in xrange(sample_images_g.shape[0]):
             idx = i
             print("sampling image ", idx)
-            samples = self.sess.run(
-                self.fake_B_sample,
-                feed_dict={self.real_data: sample_images_d[i], self.gen_data: sample_images_g[i]}
-            )
-            save_lip_images(samples, self.batch_size, sample_files, 'test', idx)
+            samples, samples_p = self.sess.run(
+                [self.fake_B_sample, self.fake_P],
+                feed_dict={self.real_data: sample_images_d[i], self.gen_data: sample_images_g[i],
+                           self.point_data: sample_p[i]})
+            # print (samples[0,:,:,0].shape)
+            save_lip_images(samples, samples_p, self.batch_size, sample_files, 'test', idx)
 
             pose_gt = sample_images_d[i][:, :, :, self.input_c_dim:self.input_c_dim + self.output_c_dim]
             error_sum += np.linalg.norm(samples - pose_gt)
