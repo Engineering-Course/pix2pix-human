@@ -98,15 +98,15 @@ class pix2pix(object):
     def build_model(self):
         self.gen_data = tf.placeholder(tf.float32,
                                         [self.batch_size, self.image_size, self.image_size,
-                                         self.input_c_dim + self.input_c_dim],
+                                         self.input_c_dim * 2],
                                         name='images_and_parsing')
         self.real_data = tf.placeholder(tf.float32,
                                         [self.batch_size, self.pose_size, self.pose_size,
-                                         self.input_c_dim + self.output_c_dim],
+                                         self.input_c_dim * 2 + self.output_c_dim],
                                         name='real_A_and_B_images')
         self.point_data = tf.placeholder(tf.float32, [self.batch_size, 16], name='point_label')
 
-        self.real_A = self.real_data[:, :, :, :self.input_c_dim]
+        self.real_A = self.real_data[:, :, :, :self.input_c_dim * 2]
         self.real_B = self.real_data[:, :, :, self.input_c_dim:self.input_c_dim + self.output_c_dim]
 
         self.fake_B = self.generator(self.gen_data)
