@@ -4,7 +4,7 @@ import scipy.misc
 import numpy as np
 
 import os
-os.environ["CUDA_VISIBLE_DEVICES"]="3"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 from parsing2pose import pix2pix
 import tensorflow as tf
 

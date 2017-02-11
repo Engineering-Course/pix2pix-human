@@ -166,7 +166,7 @@ def save_lip_images(images, points, batch_size, sample_files, output_set, batch_
     for i, image in enumerate(images):
         img_id = sample_files[batch_size * batch_idx + i][:-1]
         image_path = './datasets/human/masks/{}.png'.format(img_id)
-        # print img_id
+        print img_id
         img_A = scipy.misc.imread(image_path).astype(np.float)
         rows = img_A.shape[0]
         cols = img_A.shape[1]
@@ -174,19 +174,21 @@ def save_lip_images(images, points, batch_size, sample_files, output_set, batch_
             for p in xrange(image.shape[2]):
                 channel_ = image[:,:,p]
                 p_ = points[p][i]
-                if p_ < 0.3:
-                    f.write('%d %d ' % (int(0), int(0)))
-                else:
+                r_ = 0
+                c_ = 0
+                channel_ = scipy.misc.imresize(channel_, [rows, cols])
+                if p_ > 0.5:
                     r_, c_ = np.unravel_index(channel_.argmax(), channel_.shape)
-                    r_ = r_ * rows * 1.0 / channel_.shape[0]
-                    c_ = c_ * cols * 1.0 / channel_.shape[1]
-                    f.write('%d %d ' % (int(c_), int(r_)))
-                # print ('id: {}, r_: {}, c_: {}'.format(p, r_, c_))
+                    # r_ = r_ * rows * 1.0 / channel_.shape[0]
+                    # c_ = c_ * cols * 1.0 / channel_.shape[1]
+                f.write('%d %d ' % (int(c_), int(r_)))
+                save_path = './{}/pose/{}_{}.png'.format(output_set, img_id, p)
+                scipy.misc.imsave(save_path, channel_)
+                # print ('id: {}, p_: {}, r_: {}, c_: {}'.format(p, p_, r_, c_))
                 # plt.clf()
                 # plt.imshow(channel_.T)
                 # plt.show()
                 # wait = raw_input()
-
         sio.savemat('./{}/pose/{}.mat'.format(output_set, img_id), {'result': image})
 
 # new added function for lip dataset, saving parsing
