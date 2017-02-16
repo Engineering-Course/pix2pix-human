@@ -12,7 +12,7 @@ from utils import *
 class pix2pix(object):
     def __init__(self, sess, image_size=368,
                  batch_size=1, sample_size=1, output_size=368,
-                 gf_dim=32, df_dim=32, L2_lambda=0.001,
+                 gf_dim=32, df_dim=32, L2_lambda=10, D_lambda=0.001,
                  input_c_dim=3, output_c_dim=16, dataset_name='facades',
                  checkpoint_dir=None, sample_dir=None):
         """
@@ -37,6 +37,7 @@ class pix2pix(object):
         self.input_c_dim = input_c_dim
         self.output_c_dim = output_c_dim
         self.L2_lambda = L2_lambda
+        self.D_lambda = D_lambda
 
         # batch normalization : deals with poor initialization helps gradient flow
         self.d_bn1 = batch_norm(name='d_bn1')
@@ -125,8 +126,8 @@ class pix2pix(object):
 
         self.d_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(self.D_logits, tf.ones_like(self.D)))
         self.d_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(self.D_logits_, tf.zeros_like(self.D_)))
-        self.g_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(self.D_logits_, tf.ones_like(self.D_))) \
-                        + self.L2_lambda * tf.reduce_mean(tf.sqrt(tf.nn.l2_loss((self.real_B - self.fake_B))))
+        self.g_loss = self.D_lambda * tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(self.D_logits_, tf.ones_like(self.D_))) \
+                        + tf.reduce_mean(tf.sqrt(tf.nn.l2_loss((self.real_B - self.fake_B))))
                         # + self.L1_lambda * tf.reduce_mean(tf.abs(self.real_B - self.fake_B))
 
         self.fake_P = []
@@ -134,7 +135,7 @@ class pix2pix(object):
             heatmap = self.fake_B[:,:,:,i]
             fake_Pi = self.generator_pose(heatmap[:,:,:,np.newaxis])
             self.fake_P.append(fake_Pi)
-            self.g_loss += self.L2_lambda * tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=fake_Pi, targets=self.point_data[:,i:i+1]))
+            self.g_loss += tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=fake_Pi, targets=self.point_data[:,i:i+1]))
         # print fake_P
 
         self.d_loss_real_sum = tf.scalar_summary("d_loss_real", self.d_loss_real)

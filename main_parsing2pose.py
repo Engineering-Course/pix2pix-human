@@ -34,7 +34,8 @@ parser.add_argument('--serial_batch_iter', dest='serial_batch_iter', type=bool, 
 parser.add_argument('--checkpoint_dir', dest='checkpoint_dir', default='./checkpoint', help='models are saved here')
 parser.add_argument('--sample_dir', dest='sample_dir', default='./sample', help='sample are saved here')
 parser.add_argument('--test_dir', dest='test_dir', default='./test', help='test sample are saved here')
-parser.add_argument('--L2_lambda', dest='L2_lambda', type=float, default=0.1, help='weight on L2 term in objective')
+parser.add_argument('--L2_lambda', dest='L2_lambda', type=float, default=1, help='weight on L2 term in objective')
+parser.add_argument('--D_lambda', dest='D_lambda', type=float, default=0.001, help='weight on D loss')
 
 
 args = parser.parse_args()
@@ -51,7 +52,7 @@ def main(_):
         model = pix2pix(sess, image_size=args.fine_size, batch_size=args.batch_size,
                         output_size=args.fine_size, dataset_name=args.dataset_name,
                         checkpoint_dir=args.checkpoint_dir, sample_dir=args.sample_dir,
-                        L2_lambda = args.L2_lambda)
+                        L2_lambda = args.L2_lambda, D_lambda = args.D_lambda)
 
         if args.phase == 'train':
             model.train(args)
