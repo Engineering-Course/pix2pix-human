@@ -18,6 +18,9 @@ pp = pprint.PrettyPrinter()
 
 get_stddev = lambda x, k_h, k_w: 1/math.sqrt(k_w*k_h*x.get_shape()[-1])
 
+point_name = ['Ankle', 'Knee', 'Hip', 'Hip', 'Knee', 'Ankle', 'Pelvis', 'Spine',
+              'Neck', 'Head', 'Wrist', 'Elbow', 'Shoulder', 'Shoulder', 'Elbow', 'Wrist']
+
 # -----------------------------
 # new added functions for pix2pix
 
@@ -182,7 +185,7 @@ def save_lip_images(images, points, batch_size, sample_files, output_set, batch_
                     # r_ = r_ * rows * 1.0 / channel_.shape[0]
                     # c_ = c_ * cols * 1.0 / channel_.shape[1]
                 f.write('%d %d ' % (int(c_), int(r_)))
-                save_path = './{}/pose/{}_{}.png'.format(output_set, img_id, p)
+                save_path = './{}/pose/{}_{}.png'.format(output_set, img_id, point_name[p])
                 scipy.misc.imsave(save_path, channel_)
                 # print ('id: {}, p_: {}, r_: {}, c_: {}'.format(p, p_, r_, c_))
                 # plt.clf()

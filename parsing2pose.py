@@ -107,7 +107,7 @@ class pix2pix(object):
         self.point_data = tf.placeholder(tf.float32, [self.batch_size, 16], name='point_label')
 
         self.real_A = self.real_data[:, :, :, :self.input_c_dim * 2]
-        self.real_B = self.real_data[:, :, :, self.input_c_dim:self.input_c_dim + self.output_c_dim]
+        self.real_B = self.real_data[:, :, :, self.input_c_dim * 2:self.input_c_dim + self.output_c_dim]
 
         self.fake_B = self.generator(self.gen_data)
 
