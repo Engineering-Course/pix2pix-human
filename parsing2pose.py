@@ -107,7 +107,7 @@ class pix2pix(object):
         self.point_data = tf.placeholder(tf.float32, [self.batch_size, 16], name='point_label')
 
         self.real_A = self.real_data[:, :, :, :self.input_c_dim * 2]
-        self.real_B = self.real_data[:, :, :, self.input_c_dim * 2:self.input_c_dim + self.output_c_dim]
+        self.real_B = self.real_data[:, :, :, self.input_c_dim * 2 : self.input_c_dim * 2 + self.output_c_dim]
 
         self.fake_B = self.generator(self.gen_data)
 
@@ -267,7 +267,6 @@ class pix2pix(object):
             tf.get_variable_scope().reuse_variables()
         else:
             assert tf.get_variable_scope().reuse == False
-
         h0 = lrelu(conv2d(image, self.df_dim, name='d_h0_conv'))
         # h0 is (32 x 32 x self.df_dim)
         h1 = lrelu(self.d_bn1(conv2d(h0, self.df_dim*2, name='d_h1_conv')))
