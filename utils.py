@@ -52,7 +52,7 @@ def load_lip_data(image_id):
     image_id = image_id[:-1] 
     image_path = './datasets/human/images/{}.jpg'.format(image_id)
     img = scipy.misc.imread(image_path).astype(np.float)
-    parsing_path = './datasets/human/masks/{}.png'.format(image_id)
+    parsing_path = './datasets/human/segmentations/{}.png'.format(image_id)
     parsing = scipy.misc.imread(parsing_path).astype(np.float)
     rows = img.shape[0]
     cols = img.shape[1]
@@ -88,11 +88,11 @@ def load_lip_data(image_id):
 
     origin_g = origin_g / 127.5 - 1.
     origin_d = origin_d / 127.5 - 1.
-    parsing_g = parsing_g / 127.5 - 1.
-    parsing_d = parsing_d / 127.5 - 1.
+    # parsing_g = parsing_g / 127.5 - 1.
+    # parsing_d = parsing_d / 127.5 - 1.
     
-    img_g = np.concatenate((origin_g, parsing_g), axis=2)
-    img_d = np.concatenate((origin_d, parsing_d, heatmap), axis=2)
+    img_g = np.concatenate((origin_g, parsing_g[:,:,np.newaxis]), axis=2)
+    img_d = np.concatenate((origin_d, parsing_d[:,:,np.newaxis], heatmap), axis=2)
     return img_g, img_d, pid
 
 # new added function for task, pose to parsing

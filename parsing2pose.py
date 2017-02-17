@@ -53,7 +53,7 @@ class pix2pix(object):
         self.checkpoint_dir = checkpoint_dir
 #------------------------network setting---------------------
         self.weights ={
-            'wc1_1': tf.Variable(tf.truncated_normal([3, 3, 6, 64], stddev=0.01), name='wc1_1'),
+            'wc1_1': tf.Variable(tf.truncated_normal([3, 3, 4, 64], stddev=0.01), name='wc1_1'),
             'wc1_2': tf.Variable(tf.truncated_normal([3, 3, 64, 64], stddev=0.01), name='wc1_2'),
             'wc2_1': tf.Variable(tf.truncated_normal([3, 3, 64, 128], stddev=0.01), name='wc2_1'),
             'wc2_2': tf.Variable(tf.truncated_normal([3, 3, 128, 128], stddev=0.01), name='wc2_2'),
@@ -99,16 +99,16 @@ class pix2pix(object):
     def build_model(self):
         self.gen_data = tf.placeholder(tf.float32,
                                         [self.batch_size, self.image_size, self.image_size,
-                                         self.input_c_dim * 2],
+                                         self.input_c_dim + 1],
                                         name='images_and_parsing')
         self.real_data = tf.placeholder(tf.float32,
                                         [self.batch_size, self.pose_size, self.pose_size,
-                                         self.input_c_dim * 2 + self.output_c_dim],
+                                         self.input_c_dim + 1 + self.output_c_dim],
                                         name='real_A_and_B_images')
         self.point_data = tf.placeholder(tf.float32, [self.batch_size, 16], name='point_label')
 
-        self.real_A = self.real_data[:, :, :, :self.input_c_dim * 2]
-        self.real_B = self.real_data[:, :, :, self.input_c_dim * 2 : self.input_c_dim * 2 + self.output_c_dim]
+        self.real_A = self.real_data[:, :, :, :self.input_c_dim + 1]
+        self.real_B = self.real_data[:, :, :, self.input_c_dim + 1 : self.input_c_dim + 1 + self.output_c_dim]
 
         self.fake_B = self.generator(self.gen_data)
 
@@ -179,7 +179,7 @@ class pix2pix(object):
             feed_dict={self.real_data: sample_d, self.gen_data: sample_g, self.point_data: batch_p})
         save_lip_images(samples, samples_p, self.batch_size, sample_files, 'sample')
 
-        pose_gt = sample_d[:, :, :, self.input_c_dim:self.input_c_dim + self.output_c_dim]
+        pose_gt = sample_d[:, :, :, self.input_c_dim + 1 : self.input_c_dim + 1 + self.output_c_dim]
         error_sum = np.linalg.norm(samples - pose_gt)
         print("l2 loss: {:.8f}.".format(error_sum / self.batch_size))
         print("[Sample] d_loss: {:.8f}, g_loss: {:.8f}".format(d_loss, g_loss))
@@ -510,7 +510,7 @@ class pix2pix(object):
             # print (samples[0,:,:,0].shape)
             save_lip_images(samples, samples_p, self.batch_size, sample_files, 'test', idx)
 
-            pose_gt = sample_images_d[i][:, :, :, self.input_c_dim:self.input_c_dim + self.output_c_dim]
+            pose_gt = sample_images_d[i][:, :, :, self.input_c_dim + 1 : self.input_c_dim + 1 + self.output_c_dim]
             error_sum += np.linalg.norm(samples - pose_gt)
         print error_sum / self.batch_size / sample_images_g.shape[0]
 
