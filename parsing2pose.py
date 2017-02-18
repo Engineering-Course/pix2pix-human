@@ -112,21 +112,23 @@ class pix2pix(object):
 
         self.fake_B = self.generator(self.gen_data)
 
-        self.real_AB = tf.concat(3, [self.real_A, self.real_B])
-        self.fake_AB = tf.concat(3, [self.real_A, self.fake_B])
+        self.real_AB = tf.concat([self.real_A, self.real_B], 3)
+        self.fake_AB = tf.concat([self.real_A, self.fake_B], 3)
 
         self.D, self.D_logits = self.discriminator(self.real_AB, reuse=False)
         self.D_, self.D_logits_ = self.discriminator(self.fake_AB, reuse=True)
 
         self.fake_B_sample = self.sampler(self.gen_data)
 
-        self.d_sum = tf.histogram_summary("d", self.D)
-        self.d__sum = tf.histogram_summary("d_", self.D_)
-        self.fake_B_sum = tf.histogram_summary("fake_B", self.fake_B)
+        self.d_sum = tf.summary.histogram("d", self.D)
+        self.d__sum = tf.summary.histogram("d_", self.D_)
+        self.fake_B_sum = tf.summary.histogram("fake_B", self.fake_B)
 
-        self.d_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(self.D_logits, tf.ones_like(self.D)))
-        self.d_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(self.D_logits_, tf.zeros_like(self.D_)))
-        self.g_loss = self.D_lambda * tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(self.D_logits_, tf.ones_like(self.D_))) \
+        #tf.reduce_mean(D_real) - tf.reduce_mean(D_fake)
+
+        self.d_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_logits, labels=tf.ones_like(self.D)))
+        self.d_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_logits_, labels=tf.zeros_like(self.D_)))
+        self.g_loss = self.D_lambda * tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_logits_, labels=tf.ones_like(self.D_))) \
                         + tf.reduce_mean(tf.sqrt(tf.nn.l2_loss((self.real_B - self.fake_B))))
                         # + self.L1_lambda * tf.reduce_mean(tf.abs(self.real_B - self.fake_B))
 
@@ -135,16 +137,16 @@ class pix2pix(object):
             heatmap = self.fake_B[:,:,:,i]
             fake_Pi = self.generator_pose(heatmap[:,:,:,np.newaxis])
             self.fake_P.append(fake_Pi)
-            self.g_loss += tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=fake_Pi, targets=self.point_data[:,i:i+1]))
+            self.g_loss += tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=fake_Pi, labels=self.point_data[:,i:i+1]))
         # print fake_P
 
-        self.d_loss_real_sum = tf.scalar_summary("d_loss_real", self.d_loss_real)
-        self.d_loss_fake_sum = tf.scalar_summary("d_loss_fake", self.d_loss_fake)
+        self.d_loss_real_sum = tf.summary.scalar("d_loss_real", self.d_loss_real)
+        self.d_loss_fake_sum = tf.summary.scalar("d_loss_fake", self.d_loss_fake)
 
         self.d_loss = self.d_loss_real + self.d_loss_fake
 
-        self.g_loss_sum = tf.scalar_summary("g_loss", self.g_loss)
-        self.d_loss_sum = tf.scalar_summary("d_loss", self.d_loss)
+        self.g_loss_sum = tf.summary.scalar("g_loss", self.g_loss)
+        self.d_loss_sum = tf.summary.scalar("d_loss", self.d_loss)
 
         t_vars = tf.trainable_variables()
 
@@ -193,9 +195,9 @@ class pix2pix(object):
 
         tf.initialize_all_variables().run()
 
-        self.g_sum = tf.merge_summary([self.d__sum,
+        self.g_sum = tf.summary.merge([self.d__sum,
             self.fake_B_sum, self.d_loss_fake_sum, self.g_loss_sum])
-        self.d_sum = tf.merge_summary([self.d_sum, self.d_loss_real_sum, self.d_loss_sum])
+        self.d_sum = tf.summary.merge([self.d_sum, self.d_loss_real_sum, self.d_loss_sum])
         self.writer = tf.train.SummaryWriter("./logs", self.sess.graph)
 
         counter = 1
