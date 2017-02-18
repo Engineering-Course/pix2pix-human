@@ -115,8 +115,8 @@ class pix2pix(object):
         self.real_AB = tf.concat([self.real_A, self.real_B], 3)
         self.fake_AB = tf.concat([self.real_A, self.fake_B], 3)
 
-        self.D, self.D_logits = self.discriminator(self.real_AB, reuse=False)
-        self.D_, self.D_logits_ = self.discriminator(self.fake_AB, reuse=True)
+        self.D, self.D_real_logits = self.discriminator(self.real_AB, reuse=False)
+        self.D_, self.D_fake_logits = self.discriminator(self.fake_AB, reuse=True)
 
         self.fake_B_sample = self.sampler(self.gen_data)
 
@@ -124,12 +124,9 @@ class pix2pix(object):
         self.d__sum = tf.summary.histogram("d_", self.D_)
         self.fake_B_sum = tf.summary.histogram("fake_B", self.fake_B)
 
-        #tf.reduce_mean(D_real) - tf.reduce_mean(D_fake)
-
-        self.d_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_logits, labels=tf.ones_like(self.D)))
-        self.d_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_logits_, labels=tf.zeros_like(self.D_)))
-        self.g_loss = self.D_lambda * tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_logits_, labels=tf.ones_like(self.D_))) \
-                        + tf.reduce_mean(tf.sqrt(tf.nn.l2_loss((self.real_B - self.fake_B))))
+        self.d_loss_real = tf.reduce_mean(self.D_real_logits)
+        self.d_loss_fake = tf.reduce_mean(self.D_fake_logits)
+        self.g_loss = self.D_lambda * tf.reduce_mean(-self.D_fake_logits) + tf.reduce_mean(tf.sqrt(tf.nn.l2_loss((self.real_B - self.fake_B))))
                         # + self.L1_lambda * tf.reduce_mean(tf.abs(self.real_B - self.fake_B))
 
         self.fake_P = []
@@ -143,7 +140,7 @@ class pix2pix(object):
         self.d_loss_real_sum = tf.summary.scalar("d_loss_real", self.d_loss_real)
         self.d_loss_fake_sum = tf.summary.scalar("d_loss_fake", self.d_loss_fake)
 
-        self.d_loss = self.d_loss_real + self.d_loss_fake
+        self.d_loss = self.d_loss_fake - self.d_loss_real
 
         self.g_loss_sum = tf.summary.scalar("g_loss", self.g_loss)
         self.d_loss_sum = tf.summary.scalar("d_loss", self.d_loss)
@@ -153,10 +150,13 @@ class pix2pix(object):
         self.d_vars = [var for var in t_vars if 'd_' in var.name]
         self.g_vars = [var for var in t_vars if 'd_' not in var.name]
 
+        # clip D theta
+        self.clip_D = [p.assign(tf.clip_by_value(p, -0.01, 0.01)) for p in self.d_vars]
+
         self.saver = tf.train.Saver()
 
-    def load_random_samples(self):
-        with open('./datasets/human/list/val_rgb_id.txt', 'r') as list_file:
+    def load_random_samples(self, set_name):
+        with open('./datasets/human/list/{}_rgb_id.txt'.format(set_name), 'r') as list_file:
             lines = list_file.readlines()
         data = np.random.choice(lines, self.batch_size)
         batch_g = []
@@ -175,7 +175,7 @@ class pix2pix(object):
         return sample_g, sample_d, batch_p, data
 
     def sample_model(self, sample_dir, epoch, idx):
-        sample_g, sample_d, batch_p, sample_files = self.load_random_samples()
+        sample_g, sample_d, batch_p, sample_files = self.load_random_samples('val')
         samples, samples_p, d_loss, g_loss = self.sess.run(
             [self.fake_B_sample, self.fake_P, self.d_loss, self.g_loss],
             feed_dict={self.real_data: sample_d, self.gen_data: sample_g, self.point_data: batch_p})
@@ -188,17 +188,15 @@ class pix2pix(object):
 
     def train(self, args):
         """Train pix2pix"""
-        d_optim = tf.train.AdamOptimizer(args.lr, beta1=args.beta1) \
-                          .minimize(self.d_loss, var_list=self.d_vars)
-        g_optim = tf.train.AdamOptimizer(args.lr, beta1=args.beta1) \
-                          .minimize(self.g_loss, var_list=self.g_vars)
+        d_optim = (tf.train.RMSPropOptimizer(learning_rate=args.lr).minimize(self.d_loss, var_list=self.d_vars))
+        g_optim = (tf.train.RMSPropOptimizer(learning_rate=args.lr).minimize(self.g_loss, var_list=self.g_vars))
 
         tf.initialize_all_variables().run()
 
         self.g_sum = tf.summary.merge([self.d__sum,
             self.fake_B_sum, self.d_loss_fake_sum, self.g_loss_sum])
         self.d_sum = tf.summary.merge([self.d_sum, self.d_loss_real_sum, self.d_loss_sum])
-        self.writer = tf.train.SummaryWriter("./logs", self.sess.graph)
+        self.writer = tf.summary.FileWriter("./logs", self.sess.graph)
 
         counter = 1
         start_time = time.time()
@@ -230,10 +228,12 @@ class pix2pix(object):
                 batch_images_d = np.array(batch_d).astype(np.float32)
 
                 # Update D network
-                _, summary_str = self.sess.run([d_optim, self.d_sum],
-                                               feed_dict={ self.real_data: batch_images_d, self.gen_data: batch_images_g, 
-                                                           self.point_data: batch_p})
-                self.writer.add_summary(summary_str, counter)
+                for iter_d in range(5):
+                    D_sample_g, D_sample_d, D_batch_p, _ = self.load_random_samples('train')
+                    _, summary_str, _ = self.sess.run([d_optim, self.d_sum, self.clip_D],
+                                                   feed_dict={ self.real_data: D_sample_d, self.gen_data: D_sample_g, 
+                                                               self.point_data: D_batch_p})
+                    self.writer.add_summary(summary_str, counter)
 
                 # Update G network
                 _, summary_str = self.sess.run([g_optim, self.g_sum],
@@ -242,10 +242,10 @@ class pix2pix(object):
                 self.writer.add_summary(summary_str, counter)
 
                 # Run g_optim twice to make sure that d_loss does not go to zero (different from paper)
-                _, summary_str = self.sess.run([g_optim, self.g_sum],
-                                               feed_dict={ self.real_data: batch_images_d, self.gen_data: batch_images_g, 
-                                                           self.point_data: batch_p})
-                self.writer.add_summary(summary_str, counter)
+                # _, summary_str = self.sess.run([g_optim, self.g_sum],
+                #                                feed_dict={ self.real_data: batch_images_d, self.gen_data: batch_images_g, 
+                #                                            self.point_data: batch_p})
+                # self.writer.add_summary(summary_str, counter)
 
                 errD_fake = self.d_loss_fake.eval({self.real_data: batch_images_d, self.gen_data: batch_images_g, 
                                                            self.point_data: batch_p})
@@ -266,172 +266,178 @@ class pix2pix(object):
                     self.save(args.checkpoint_dir, counter)
 
     def discriminator(self, image, y=None, reuse=False):
-        if reuse:
-            tf.get_variable_scope().reuse_variables()
-        else:
-            assert tf.get_variable_scope().reuse == False
-        h0 = lrelu(conv2d(image, self.df_dim, name='d_h0_conv'))
-        # h0 is (32 x 32 x self.df_dim)
-        h1 = lrelu(self.d_bn1(conv2d(h0, self.df_dim*2, name='d_h1_conv')))
-        # h1 is (16 x 16 x self.df_dim*2)
-        h2 = lrelu(self.d_bn2(conv2d(h1, self.df_dim*4, d_h=1, d_w=1, name='d_h2_conv')))
-        # h3 is (8 x 8 x self.df_dim*4)
-        h3 = linear(tf.reshape(h2, [self.batch_size, -1]), 1, 'd_h2_lin')
+        with tf.variable_scope("discriminator") as scope:
+            if reuse:
+                tf.get_variable_scope().reuse_variables()
+            else:
+                assert tf.get_variable_scope().reuse == False
+            h0 = lrelu(conv2d(image, self.df_dim, name='d_h0_conv'))
+            # h0 is (32 x 32 x self.df_dim)
+            h1 = lrelu(self.d_bn1(conv2d(h0, self.df_dim*2, name='d_h1_conv')))
+            # h1 is (16 x 16 x self.df_dim*2)
+            h2 = lrelu(self.d_bn2(conv2d(h1, self.df_dim*4, d_h=1, d_w=1, name='d_h2_conv')))
+            # h3 is (8 x 8 x self.df_dim*4)
+            h3 = linear(tf.reshape(h2, [self.batch_size, -1]), 1, 'd_h2_lin')
 
-        return tf.nn.sigmoid(h3), h3
+            return tf.nn.sigmoid(h3), h3
 
     def generator(self, image, y=None):
-        conv1_1 = tf.nn.conv2d(image, self.weights['wc1_1'], strides=[1, 1, 1, 1], padding='SAME')
-        conv1_1 = tf.reshape(tf.nn.bias_add(conv1_1, self.biases['bc1_1']), conv1_1.get_shape())
+        with tf.variable_scope("generator") as scope:
+            conv1_1 = tf.nn.conv2d(image, self.weights['wc1_1'], strides=[1, 1, 1, 1], padding='SAME')
+            conv1_1 = tf.reshape(tf.nn.bias_add(conv1_1, self.biases['bc1_1']), conv1_1.get_shape())
 
-        conv1_2 = tf.nn.conv2d(tf.nn.relu(conv1_1), self.weights['wc1_2'], strides=[1, 1, 1, 1], padding='SAME')
-        conv1_2 = tf.reshape(tf.nn.bias_add(conv1_2, self.biases['bc1_2']), conv1_2.get_shape())
+            conv1_2 = tf.nn.conv2d(tf.nn.relu(conv1_1), self.weights['wc1_2'], strides=[1, 1, 1, 1], padding='SAME')
+            conv1_2 = tf.reshape(tf.nn.bias_add(conv1_2, self.biases['bc1_2']), conv1_2.get_shape())
 
-        e1 = self.g_bn_e1(conv1_2)
-        pool1 = tf.nn.max_pool(tf.nn.relu(e1), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
-        
-        conv2_1 = tf.nn.conv2d(tf.nn.relu(pool1), self.weights['wc2_1'], strides=[1, 1, 1, 1], padding='SAME')
-        conv2_1 = tf.reshape(tf.nn.bias_add(conv2_1, self.biases['bc2_1']), conv2_1.get_shape())
+            e1 = self.g_bn_e1(conv1_2)
+            pool1 = tf.nn.max_pool(tf.nn.relu(e1), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+            
+            conv2_1 = tf.nn.conv2d(tf.nn.relu(pool1), self.weights['wc2_1'], strides=[1, 1, 1, 1], padding='SAME')
+            conv2_1 = tf.reshape(tf.nn.bias_add(conv2_1, self.biases['bc2_1']), conv2_1.get_shape())
 
-        conv2_2 = tf.nn.conv2d(tf.nn.relu(conv2_1), self.weights['wc2_2'], strides=[1, 1, 1, 1], padding='SAME')
-        conv2_2 = tf.reshape(tf.nn.bias_add(conv2_2, self.biases['bc2_2']), conv2_2.get_shape())
+            conv2_2 = tf.nn.conv2d(tf.nn.relu(conv2_1), self.weights['wc2_2'], strides=[1, 1, 1, 1], padding='SAME')
+            conv2_2 = tf.reshape(tf.nn.bias_add(conv2_2, self.biases['bc2_2']), conv2_2.get_shape())
 
-        e2 = self.g_bn_e2(conv2_2)
-        pool2 = tf.nn.max_pool(tf.nn.relu(e2), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+            e2 = self.g_bn_e2(conv2_2)
+            pool2 = tf.nn.max_pool(tf.nn.relu(e2), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
-        conv3_1 = tf.nn.conv2d(tf.nn.relu(pool2), self.weights['wc3_1'], strides=[1, 1, 1, 1], padding='SAME')
-        conv3_1 = tf.reshape(tf.nn.bias_add(conv3_1, self.biases['bc3_1']), conv3_1.get_shape())
+            conv3_1 = tf.nn.conv2d(tf.nn.relu(pool2), self.weights['wc3_1'], strides=[1, 1, 1, 1], padding='SAME')
+            conv3_1 = tf.reshape(tf.nn.bias_add(conv3_1, self.biases['bc3_1']), conv3_1.get_shape())
 
-        conv3_2 = tf.nn.conv2d(tf.nn.relu(conv3_1), self.weights['wc3_2'], strides=[1, 1, 1, 1], padding='SAME')
-        conv3_2 = tf.reshape(tf.nn.bias_add(conv3_2, self.biases['bc3_2']), conv3_2.get_shape())
+            conv3_2 = tf.nn.conv2d(tf.nn.relu(conv3_1), self.weights['wc3_2'], strides=[1, 1, 1, 1], padding='SAME')
+            conv3_2 = tf.reshape(tf.nn.bias_add(conv3_2, self.biases['bc3_2']), conv3_2.get_shape())
 
-        conv3_3 = tf.nn.conv2d(tf.nn.relu(conv3_2), self.weights['wc3_3'], strides=[1, 1, 1, 1], padding='SAME')
-        conv3_3 = tf.reshape(tf.nn.bias_add(conv3_3, self.biases['bc3_3']), conv3_3.get_shape())
+            conv3_3 = tf.nn.conv2d(tf.nn.relu(conv3_2), self.weights['wc3_3'], strides=[1, 1, 1, 1], padding='SAME')
+            conv3_3 = tf.reshape(tf.nn.bias_add(conv3_3, self.biases['bc3_3']), conv3_3.get_shape())
 
-        conv3_4 = tf.nn.conv2d(tf.nn.relu(conv3_3), self.weights['wc3_4'], strides=[1, 1, 1, 1], padding='SAME')
-        conv3_4 = tf.reshape(tf.nn.bias_add(conv3_4, self.biases['bc3_4']), conv3_4.get_shape())
+            conv3_4 = tf.nn.conv2d(tf.nn.relu(conv3_3), self.weights['wc3_4'], strides=[1, 1, 1, 1], padding='SAME')
+            conv3_4 = tf.reshape(tf.nn.bias_add(conv3_4, self.biases['bc3_4']), conv3_4.get_shape())
 
-        e3 = self.g_bn_e3(conv3_4)
-        pool3 = tf.nn.max_pool(tf.nn.relu(e3), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+            e3 = self.g_bn_e3(conv3_4)
+            pool3 = tf.nn.max_pool(tf.nn.relu(e3), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
-        conv4_1 = tf.nn.conv2d(tf.nn.relu(pool3), self.weights['wc4_1'], strides=[1, 1, 1, 1], padding='SAME')
-        conv4_1 = tf.reshape(tf.nn.bias_add(conv4_1, self.biases['bc4_1']), conv4_1.get_shape())
+            conv4_1 = tf.nn.conv2d(tf.nn.relu(pool3), self.weights['wc4_1'], strides=[1, 1, 1, 1], padding='SAME')
+            conv4_1 = tf.reshape(tf.nn.bias_add(conv4_1, self.biases['bc4_1']), conv4_1.get_shape())
 
-        conv4_2 = tf.nn.conv2d(tf.nn.relu(conv4_1), self.weights['wc4_2'], strides=[1, 1, 1, 1], padding='SAME')
-        conv4_2 = tf.reshape(tf.nn.bias_add(conv4_2, self.biases['bc4_2']), conv4_2.get_shape())
+            conv4_2 = tf.nn.conv2d(tf.nn.relu(conv4_1), self.weights['wc4_2'], strides=[1, 1, 1, 1], padding='SAME')
+            conv4_2 = tf.reshape(tf.nn.bias_add(conv4_2, self.biases['bc4_2']), conv4_2.get_shape())
 
-        conv4_3 = tf.nn.conv2d(tf.nn.relu(conv4_2), self.weights['wc4_3'], strides=[1, 1, 1, 1], padding='SAME')
-        conv4_3 = tf.reshape(tf.nn.bias_add(conv4_3, self.biases['bc4_3']), conv4_3.get_shape())
+            conv4_3 = tf.nn.conv2d(tf.nn.relu(conv4_2), self.weights['wc4_3'], strides=[1, 1, 1, 1], padding='SAME')
+            conv4_3 = tf.reshape(tf.nn.bias_add(conv4_3, self.biases['bc4_3']), conv4_3.get_shape())
 
-        conv4_4 = tf.nn.conv2d(tf.nn.relu(conv4_3), self.weights['wc4_4'], strides=[1, 1, 1, 1], padding='SAME')
-        conv4_4 = tf.reshape(tf.nn.bias_add(conv4_4, self.biases['bc4_4']), conv4_4.get_shape())
+            conv4_4 = tf.nn.conv2d(tf.nn.relu(conv4_3), self.weights['wc4_4'], strides=[1, 1, 1, 1], padding='SAME')
+            conv4_4 = tf.reshape(tf.nn.bias_add(conv4_4, self.biases['bc4_4']), conv4_4.get_shape())
 
-        conv4_5 = tf.nn.conv2d(tf.nn.relu(conv4_4), self.weights['wc4_5'], strides=[1, 1, 1, 1], padding='SAME')
-        conv4_5 = tf.reshape(tf.nn.bias_add(conv4_5, self.biases['bc4_5']), conv4_5.get_shape())
+            conv4_5 = tf.nn.conv2d(tf.nn.relu(conv4_4), self.weights['wc4_5'], strides=[1, 1, 1, 1], padding='SAME')
+            conv4_5 = tf.reshape(tf.nn.bias_add(conv4_5, self.biases['bc4_5']), conv4_5.get_shape())
 
-        conv4_6 = tf.nn.conv2d(tf.nn.relu(conv4_5), self.weights['wc4_6'], strides=[1, 1, 1, 1], padding='SAME')
-        conv4_6 = tf.reshape(tf.nn.bias_add(conv4_6, self.biases['bc4_6']), conv4_6.get_shape())
+            conv4_6 = tf.nn.conv2d(tf.nn.relu(conv4_5), self.weights['wc4_6'], strides=[1, 1, 1, 1], padding='SAME')
+            conv4_6 = tf.reshape(tf.nn.bias_add(conv4_6, self.biases['bc4_6']), conv4_6.get_shape())
 
-        conv4_7 = tf.nn.conv2d(tf.nn.relu(conv4_6), self.weights['wc4_7'], strides=[1, 1, 1, 1], padding='SAME')
-        conv4_7 = tf.reshape(tf.nn.bias_add(conv4_7, self.biases['bc4_7']), conv4_7.get_shape())
+            conv4_7 = tf.nn.conv2d(tf.nn.relu(conv4_6), self.weights['wc4_7'], strides=[1, 1, 1, 1], padding='SAME')
+            conv4_7 = tf.reshape(tf.nn.bias_add(conv4_7, self.biases['bc4_7']), conv4_7.get_shape())
 
-        e4 = self.g_bn_e4(conv4_7)
+            e4 = self.g_bn_e4(conv4_7)
 
-        conv5_1 = tf.nn.conv2d(tf.nn.relu(e4), self.weights['wc5_1'], strides=[1, 1, 1, 1], padding='SAME')
-        conv5_1 = tf.reshape(tf.nn.bias_add(conv5_1, self.biases['bc5_1']), conv5_1.get_shape())
+            conv5_1 = tf.nn.conv2d(tf.nn.relu(e4), self.weights['wc5_1'], strides=[1, 1, 1, 1], padding='SAME')
+            conv5_1 = tf.reshape(tf.nn.bias_add(conv5_1, self.biases['bc5_1']), conv5_1.get_shape())
 
-        conv5_2 = tf.nn.conv2d(tf.nn.relu(conv5_1), self.weights['wc5_2'], strides=[1, 1, 1, 1], padding='SAME')
-        conv5_2 = tf.reshape(tf.nn.bias_add(conv5_2, self.biases['bc5_2']), conv5_2.get_shape())
+            conv5_2 = tf.nn.conv2d(tf.nn.relu(conv5_1), self.weights['wc5_2'], strides=[1, 1, 1, 1], padding='SAME')
+            conv5_2 = tf.reshape(tf.nn.bias_add(conv5_2, self.biases['bc5_2']), conv5_2.get_shape())
 
-        return conv5_2
+            return conv5_2
 
     def generator_pose(self, image, y=None):
-        
-        pool4 = tf.nn.max_pool(tf.nn.relu(image), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
-        fc6_1 = tf.reshape(pool4, [-1, self.weights['fc6_1'].get_shape().as_list()[0]])
-        fc6_1 = tf.add(tf.matmul(fc6_1, self.weights['fc6_1']), self.biases['bc6_1'])
-        fc6_1 = tf.nn.dropout(tf.nn.relu(fc6_1), 0.5)
-        fc6_2 = tf.add(tf.matmul(fc6_1, self.weights['fc6_2']), self.biases['bc6_2'])
+        with tf.variable_scope("generator_pose") as scope:
+            pool4 = tf.nn.max_pool(tf.nn.relu(image), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+            fc6_1 = tf.reshape(pool4, [-1, self.weights['fc6_1'].get_shape().as_list()[0]])
+            fc6_1 = tf.add(tf.matmul(fc6_1, self.weights['fc6_1']), self.biases['bc6_1'])
+            fc6_1 = tf.nn.dropout(tf.nn.relu(fc6_1), 0.5)
+            fc6_2 = tf.add(tf.matmul(fc6_1, self.weights['fc6_2']), self.biases['bc6_2'])
 
-        return tf.nn.sigmoid(fc6_2)
+            return tf.nn.sigmoid(fc6_2)
 
     def sampler_pose(self, image, y=None):
-        tf.get_variable_scope().reuse_variables()
+        with tf.variable_scope("generator_pose") as scope:
+            tf.get_variable_scope().reuse_variables()
 
-        pool4 = tf.nn.max_pool(tf.nn.relu(image), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
-        fc6_1 = tf.reshape(pool4, [-1, self.weights['fc6_1'].get_shape().as_list()[0]])
-        fc6_1 = tf.add(tf.matmul(fc6_1, self.weights['fc6_1']), self.biases['bc6_1'])
-        fc6_1 = tf.nn.dropout(tf.nn.relu(fc6_1), 0.5)
-        fc6_2 = tf.add(tf.matmul(fc6_1, self.weights['fc6_2']), self.biases['bc6_2'])
+            pool4 = tf.nn.max_pool(tf.nn.relu(image), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+            fc6_1 = tf.reshape(pool4, [-1, self.weights['fc6_1'].get_shape().as_list()[0]])
+            fc6_1 = tf.add(tf.matmul(fc6_1, self.weights['fc6_1']), self.biases['bc6_1'])
+            fc6_1 = tf.nn.dropout(tf.nn.relu(fc6_1), 0.5)
+            fc6_2 = tf.add(tf.matmul(fc6_1, self.weights['fc6_2']), self.biases['bc6_2'])
 
-        return tf.nn.sigmoid(fc6_2)
+            return tf.nn.sigmoid(fc6_2)
 
     def sampler(self, image, y=None):
-        tf.get_variable_scope().reuse_variables()
 
-        conv1_1 = tf.nn.conv2d(image, self.weights['wc1_1'], strides=[1, 1, 1, 1], padding='SAME')
-        conv1_1 = tf.reshape(tf.nn.bias_add(conv1_1, self.biases['bc1_1']), conv1_1.get_shape())
+         with tf.variable_scope("generator") as scope:
+            # scope.reuse_variables()
+            tf.get_variable_scope().reuse_variables()
 
-        conv1_2 = tf.nn.conv2d(tf.nn.relu(conv1_1), self.weights['wc1_2'], strides=[1, 1, 1, 1], padding='SAME')
-        conv1_2 = tf.reshape(tf.nn.bias_add(conv1_2, self.biases['bc1_2']), conv1_2.get_shape())
-        
-        e1 = self.g_bn_e1(conv1_2)
-        pool1 = tf.nn.max_pool(tf.nn.relu(e1), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
-        
-        conv2_1 = tf.nn.conv2d(tf.nn.relu(pool1), self.weights['wc2_1'], strides=[1, 1, 1, 1], padding='SAME')
-        conv2_1 = tf.reshape(tf.nn.bias_add(conv2_1, self.biases['bc2_1']), conv2_1.get_shape())
+            conv1_1 = tf.nn.conv2d(image, self.weights['wc1_1'], strides=[1, 1, 1, 1], padding='SAME')
+            conv1_1 = tf.reshape(tf.nn.bias_add(conv1_1, self.biases['bc1_1']), conv1_1.get_shape())
 
-        conv2_2 = tf.nn.conv2d(tf.nn.relu(conv2_1), self.weights['wc2_2'], strides=[1, 1, 1, 1], padding='SAME')
-        conv2_2 = tf.reshape(tf.nn.bias_add(conv2_2, self.biases['bc2_2']), conv2_2.get_shape())
+            conv1_2 = tf.nn.conv2d(tf.nn.relu(conv1_1), self.weights['wc1_2'], strides=[1, 1, 1, 1], padding='SAME')
+            conv1_2 = tf.reshape(tf.nn.bias_add(conv1_2, self.biases['bc1_2']), conv1_2.get_shape())
+            
+            e1 = self.g_bn_e1(conv1_2)
+            pool1 = tf.nn.max_pool(tf.nn.relu(e1), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+            
+            conv2_1 = tf.nn.conv2d(tf.nn.relu(pool1), self.weights['wc2_1'], strides=[1, 1, 1, 1], padding='SAME')
+            conv2_1 = tf.reshape(tf.nn.bias_add(conv2_1, self.biases['bc2_1']), conv2_1.get_shape())
 
-        e2 = self.g_bn_e2(conv2_2)
-        pool2 = tf.nn.max_pool(tf.nn.relu(e2), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+            conv2_2 = tf.nn.conv2d(tf.nn.relu(conv2_1), self.weights['wc2_2'], strides=[1, 1, 1, 1], padding='SAME')
+            conv2_2 = tf.reshape(tf.nn.bias_add(conv2_2, self.biases['bc2_2']), conv2_2.get_shape())
 
-        conv3_1 = tf.nn.conv2d(tf.nn.relu(pool2), self.weights['wc3_1'], strides=[1, 1, 1, 1], padding='SAME')
-        conv3_1 = tf.reshape(tf.nn.bias_add(conv3_1, self.biases['bc3_1']), conv3_1.get_shape())
+            e2 = self.g_bn_e2(conv2_2)
+            pool2 = tf.nn.max_pool(tf.nn.relu(e2), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
-        conv3_2 = tf.nn.conv2d(tf.nn.relu(conv3_1), self.weights['wc3_2'], strides=[1, 1, 1, 1], padding='SAME')
-        conv3_2 = tf.reshape(tf.nn.bias_add(conv3_2, self.biases['bc3_2']), conv3_2.get_shape())
+            conv3_1 = tf.nn.conv2d(tf.nn.relu(pool2), self.weights['wc3_1'], strides=[1, 1, 1, 1], padding='SAME')
+            conv3_1 = tf.reshape(tf.nn.bias_add(conv3_1, self.biases['bc3_1']), conv3_1.get_shape())
 
-        conv3_3 = tf.nn.conv2d(tf.nn.relu(conv3_2), self.weights['wc3_3'], strides=[1, 1, 1, 1], padding='SAME')
-        conv3_3 = tf.reshape(tf.nn.bias_add(conv3_3, self.biases['bc3_3']), conv3_3.get_shape())
+            conv3_2 = tf.nn.conv2d(tf.nn.relu(conv3_1), self.weights['wc3_2'], strides=[1, 1, 1, 1], padding='SAME')
+            conv3_2 = tf.reshape(tf.nn.bias_add(conv3_2, self.biases['bc3_2']), conv3_2.get_shape())
 
-        conv3_4 = tf.nn.conv2d(tf.nn.relu(conv3_3), self.weights['wc3_4'], strides=[1, 1, 1, 1], padding='SAME')
-        conv3_4 = tf.reshape(tf.nn.bias_add(conv3_4, self.biases['bc3_4']), conv3_4.get_shape())
+            conv3_3 = tf.nn.conv2d(tf.nn.relu(conv3_2), self.weights['wc3_3'], strides=[1, 1, 1, 1], padding='SAME')
+            conv3_3 = tf.reshape(tf.nn.bias_add(conv3_3, self.biases['bc3_3']), conv3_3.get_shape())
 
-        e3 = self.g_bn_e3(conv3_4)
-        pool3 = tf.nn.max_pool(tf.nn.relu(e3), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+            conv3_4 = tf.nn.conv2d(tf.nn.relu(conv3_3), self.weights['wc3_4'], strides=[1, 1, 1, 1], padding='SAME')
+            conv3_4 = tf.reshape(tf.nn.bias_add(conv3_4, self.biases['bc3_4']), conv3_4.get_shape())
 
-        conv4_1 = tf.nn.conv2d(tf.nn.relu(pool3), self.weights['wc4_1'], strides=[1, 1, 1, 1], padding='SAME')
-        conv4_1 = tf.reshape(tf.nn.bias_add(conv4_1, self.biases['bc4_1']), conv4_1.get_shape())
+            e3 = self.g_bn_e3(conv3_4)
+            pool3 = tf.nn.max_pool(tf.nn.relu(e3), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
-        conv4_2 = tf.nn.conv2d(tf.nn.relu(conv4_1), self.weights['wc4_2'], strides=[1, 1, 1, 1], padding='SAME')
-        conv4_2 = tf.reshape(tf.nn.bias_add(conv4_2, self.biases['bc4_2']), conv4_2.get_shape())
+            conv4_1 = tf.nn.conv2d(tf.nn.relu(pool3), self.weights['wc4_1'], strides=[1, 1, 1, 1], padding='SAME')
+            conv4_1 = tf.reshape(tf.nn.bias_add(conv4_1, self.biases['bc4_1']), conv4_1.get_shape())
 
-        conv4_3 = tf.nn.conv2d(tf.nn.relu(conv4_2), self.weights['wc4_3'], strides=[1, 1, 1, 1], padding='SAME')
-        conv4_3 = tf.reshape(tf.nn.bias_add(conv4_3, self.biases['bc4_3']), conv4_3.get_shape())
+            conv4_2 = tf.nn.conv2d(tf.nn.relu(conv4_1), self.weights['wc4_2'], strides=[1, 1, 1, 1], padding='SAME')
+            conv4_2 = tf.reshape(tf.nn.bias_add(conv4_2, self.biases['bc4_2']), conv4_2.get_shape())
 
-        conv4_4 = tf.nn.conv2d(tf.nn.relu(conv4_3), self.weights['wc4_4'], strides=[1, 1, 1, 1], padding='SAME')
-        conv4_4 = tf.reshape(tf.nn.bias_add(conv4_4, self.biases['bc4_4']), conv4_4.get_shape())
+            conv4_3 = tf.nn.conv2d(tf.nn.relu(conv4_2), self.weights['wc4_3'], strides=[1, 1, 1, 1], padding='SAME')
+            conv4_3 = tf.reshape(tf.nn.bias_add(conv4_3, self.biases['bc4_3']), conv4_3.get_shape())
 
-        conv4_5 = tf.nn.conv2d(tf.nn.relu(conv4_4), self.weights['wc4_5'], strides=[1, 1, 1, 1], padding='SAME')
-        conv4_5 = tf.reshape(tf.nn.bias_add(conv4_5, self.biases['bc4_5']), conv4_5.get_shape())
+            conv4_4 = tf.nn.conv2d(tf.nn.relu(conv4_3), self.weights['wc4_4'], strides=[1, 1, 1, 1], padding='SAME')
+            conv4_4 = tf.reshape(tf.nn.bias_add(conv4_4, self.biases['bc4_4']), conv4_4.get_shape())
 
-        conv4_6 = tf.nn.conv2d(tf.nn.relu(conv4_5), self.weights['wc4_6'], strides=[1, 1, 1, 1], padding='SAME')
-        conv4_6 = tf.reshape(tf.nn.bias_add(conv4_6, self.biases['bc4_6']), conv4_6.get_shape())
+            conv4_5 = tf.nn.conv2d(tf.nn.relu(conv4_4), self.weights['wc4_5'], strides=[1, 1, 1, 1], padding='SAME')
+            conv4_5 = tf.reshape(tf.nn.bias_add(conv4_5, self.biases['bc4_5']), conv4_5.get_shape())
 
-        conv4_7 = tf.nn.conv2d(tf.nn.relu(conv4_6), self.weights['wc4_7'], strides=[1, 1, 1, 1], padding='SAME')
-        conv4_7 = tf.reshape(tf.nn.bias_add(conv4_7, self.biases['bc4_7']), conv4_7.get_shape())
+            conv4_6 = tf.nn.conv2d(tf.nn.relu(conv4_5), self.weights['wc4_6'], strides=[1, 1, 1, 1], padding='SAME')
+            conv4_6 = tf.reshape(tf.nn.bias_add(conv4_6, self.biases['bc4_6']), conv4_6.get_shape())
 
-        e4 = self.g_bn_e4(conv4_7)
+            conv4_7 = tf.nn.conv2d(tf.nn.relu(conv4_6), self.weights['wc4_7'], strides=[1, 1, 1, 1], padding='SAME')
+            conv4_7 = tf.reshape(tf.nn.bias_add(conv4_7, self.biases['bc4_7']), conv4_7.get_shape())
 
-        conv5_1 = tf.nn.conv2d(tf.nn.relu(e4), self.weights['wc5_1'], strides=[1, 1, 1, 1], padding='SAME')
-        conv5_1 = tf.reshape(tf.nn.bias_add(conv5_1, self.biases['bc5_1']), conv5_1.get_shape())
+            e4 = self.g_bn_e4(conv4_7)
 
-        conv5_2 = tf.nn.conv2d(tf.nn.relu(conv5_1), self.weights['wc5_2'], strides=[1, 1, 1, 1], padding='SAME')
-        conv5_2 = tf.reshape(tf.nn.bias_add(conv5_2, self.biases['bc5_2']), conv5_2.get_shape())
+            conv5_1 = tf.nn.conv2d(tf.nn.relu(e4), self.weights['wc5_1'], strides=[1, 1, 1, 1], padding='SAME')
+            conv5_1 = tf.reshape(tf.nn.bias_add(conv5_1, self.biases['bc5_1']), conv5_1.get_shape())
 
-        return conv5_2
+            conv5_2 = tf.nn.conv2d(tf.nn.relu(conv5_1), self.weights['wc5_2'], strides=[1, 1, 1, 1], padding='SAME')
+            conv5_2 = tf.reshape(tf.nn.bias_add(conv5_2, self.biases['bc5_2']), conv5_2.get_shape())
+
+            return conv5_2
 
     def save(self, checkpoint_dir, step):
         model_name = "pix2pix.model"
