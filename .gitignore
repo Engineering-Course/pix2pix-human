@@ -6,3 +6,4 @@ checkpoint/*
 val/*
 *.pyc
 test*
+old-logs*
