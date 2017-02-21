@@ -140,7 +140,8 @@ class pix2pix(object):
         self.g_loss_p_sum = tf.summary.scalar("g_loss_p", self.g_loss_p)
 
         self.d_loss = self.d_loss_real - self.d_loss_fake
-        self.g_loss = self.g_loss_d + self.g_loss_l2 + self.g_loss_p
+        # self.g_loss = self.g_loss_d + self.g_loss_l2 + self.g_loss_p
+        self.g_loss = self.g_loss_l2 + self.g_loss_p
 
         self.g_loss_sum = tf.summary.scalar("g_loss", self.g_loss)
         self.d_loss_sum = tf.summary.scalar("d_loss", self.d_loss)
@@ -159,7 +160,6 @@ class pix2pix(object):
         batch_g = []
         batch_d = []
         batch_p = []
-        # gen_sample, dis_sample = [load_lip_data(sample_file) for sample_file in data]
         for batch_file in data:
             g_, d_, p_ = load_lip_data(batch_file)
             batch_g.append(g_)
@@ -193,7 +193,8 @@ class pix2pix(object):
 
         tf.global_variables_initializer().run()
 
-        self.g_sum = tf.summary.merge([self.g_loss_sum, self.g_loss_d_sum, self.g_loss_l2_sum, self.g_loss_p_sum])
+        # self.g_sum = tf.summary.merge([self.g_loss_sum, self.g_loss_d_sum, self.g_loss_l2_sum, self.g_loss_p_sum])
+        self.g_sum = tf.summary.merge([self.g_loss_sum, self.g_loss_l2_sum, self.g_loss_p_sum])
         self.d_sum = tf.summary.merge([self.d_loss_sum, self.d_loss_real_sum, self.d_loss_fake_sum])
         self.writer = tf.summary.FileWriter("./logs", self.sess.graph)
 
@@ -216,7 +217,6 @@ class pix2pix(object):
                 batch_g = []
                 batch_d = []
                 batch_p = []
-                # batch_g, batch_d = [load_lip_data(batch_file) for batch_file in batch_files]
                 for batch_file in batch_files:
                     g_, d_, p_ = load_lip_data(batch_file)
                     batch_g.append(g_)
@@ -227,22 +227,23 @@ class pix2pix(object):
                 batch_images_d = np.array(batch_d).astype(np.float32)
 
                 # Update D network
-                for iter_d in range(4):
-                    D_sample_g, D_sample_d, D_batch_p, _ = self.load_random_samples('train')
-                    _, _ = self.sess.run([d_optim, self.clip_D],
-                                feed_dict={ self.real_data: D_sample_d, self.gen_data: D_sample_g, 
-                                            self.point_data: D_batch_p})
+                # for iter_d in range(4):
+                #     D_sample_g, D_sample_d, D_batch_p, _ = self.load_random_samples('train')
+                #     _, _ = self.sess.run([d_optim, self.clip_D],
+                #                 feed_dict={ self.real_data: D_sample_d, self.gen_data: D_sample_g, 
+                #                             self.point_data: D_batch_p})
 
-                _, summary_str, errD, _ = self.sess.run([d_optim, self.d_sum, self.d_loss, self.clip_D],
-                                               feed_dict={ self.real_data: batch_images_d, self.gen_data: batch_images_g, 
-                                                           self.point_data: batch_p})
-                self.writer.add_summary(summary_str, counter)
+                # _, summary_str, errD, _ = self.sess.run([d_optim, self.d_sum, self.d_loss, self.clip_D],
+                #                                feed_dict={ self.real_data: batch_images_d, self.gen_data: batch_images_g, 
+                #                                            self.point_data: batch_p})
+                # self.writer.add_summary(summary_str, counter)
                 # Update G network
                 _, summary_str, errG = self.sess.run([g_optim, self.g_sum, self.g_loss],
                                                feed_dict={ self.real_data: batch_images_d, self.gen_data: batch_images_g, 
                                                            self.point_data: batch_p})
                 self.writer.add_summary(summary_str, counter)
 
+                errD = 0
                 counter += 1
                 print("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss: %.8f, g_loss: %.8f" \
                     % (epoch, idx, batch_idxs, time.time() - start_time, errD, errG))
@@ -457,15 +458,12 @@ class pix2pix(object):
         """Test pix2pix"""
         tf.initialize_all_variables().run()
 
-        #sample_files = glob('./datasets/human/val/*.jpg'.format(self.dataset_name))
         with open('./datasets/human/list/test_rgb_id.txt', 'r') as list_file:
             lines = list_file.readlines()
-        # sample_files = lines[0:8]
         sample_files = np.random.choice(lines, 4)
 
         # load testing input
         print("Loading testing images ...")
-        # sample_g, sample_d = [load_lip_data(sample_file) for sample_file in sample_files]
         batch_g = []
         batch_d = []
         batch_p = []
@@ -485,8 +483,6 @@ class pix2pix(object):
                            for i in xrange(0, len(sample_images_d), self.batch_size)]
         sample_images_d = np.array(sample_images_d)
         sample_p = [batch_p[i:i+self.batch_size] for i in xrange(0, len(batch_p), self.batch_size)]
-        # print(sample_images_g.shape)
-        # print(sample_images_d.shape)
 
         start_time = time.time()
         if self.load(self.checkpoint_dir):
@@ -494,7 +490,6 @@ class pix2pix(object):
         else:
             print(" [!] Load failed...")
 
-        # for i, g_, d_ in enumerate(sample_images_g, sample_images_d):
         error_sum = 0
         for i in xrange(sample_images_g.shape[0]):
             idx = i
@@ -503,7 +498,6 @@ class pix2pix(object):
                 [self.fake_B_sample, self.fake_P],
                 feed_dict={self.real_data: sample_images_d[i], self.gen_data: sample_images_g[i],
                            self.point_data: sample_p[i]})
-            # print (samples[0,:,:,0].shape)
             save_lip_images(samples, samples_p, self.batch_size, sample_files, 'test', idx)
 
             pose_gt = sample_images_d[i][:, :, :, self.input_c_dim + 1 : self.input_c_dim + 1 + self.output_c_dim]
