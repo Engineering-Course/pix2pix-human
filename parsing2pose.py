@@ -133,18 +133,18 @@ class pix2pix(object):
             self.fake_P.append(fake_Pi)
             self.g_loss_p += self.L2_lambda * tf.reduce_mean(tf.abs(fake_Pi-self.point_data[:,i:i+1]))
 
-        # self.g_loss_l2 = self.L2_lambda * self.compute_loss_l2(self.real_B, self.fake_B, self.fake_P)
+        self.g_loss_l2 = self.L2_lambda * self.compute_loss_l2(self.real_B, self.fake_B, self.fake_P)
 
         self.d_loss_real_sum = tf.summary.scalar("d_loss_real", self.d_loss_real)
         self.d_loss_fake_sum = tf.summary.scalar("d_loss_fake", self.d_loss_fake)
         self.g_loss_d_sum = tf.summary.scalar("g_loss_d", self.g_loss_d)
-        # self.g_loss_l2_sum = tf.summary.scalar("g_loss_l2", self.g_loss_l2)
+        self.g_loss_l2_sum = tf.summary.scalar("g_loss_l2", self.g_loss_l2)
         self.g_loss_p_sum = tf.summary.scalar("g_loss_p", self.g_loss_p)
 
         self.d_loss = self.d_loss_real - self.d_loss_fake
         # self.g_loss = self.g_loss_d + self.g_loss_l2 + self.g_loss_p
-        # self.g_loss = self.g_loss_l2 + self.g_loss_p
-        self.g_loss = self.g_loss_p
+        self.g_loss = self.g_loss_l2 + self.g_loss_p
+        # self.g_loss = self.g_loss_p
 
         self.g_loss_sum = tf.summary.scalar("g_loss", self.g_loss)
         self.d_loss_sum = tf.summary.scalar("d_loss", self.d_loss)
@@ -160,10 +160,10 @@ class pix2pix(object):
         loss_l2 = 0
         for i in xrange(16):
             for j in xrange(self.batch_size):
-                pi = tf.round(fake_P[i][j])
+                pi = tf.round(fake_P[i][j][0])
                 fake_i = fake_B[j, :, :, i]
                 real_i = real_B[j, :, :, i]
-                fake_i = tf.scalar_mul(1, fake_i)
+                fake_i = tf.scalar_mul(pi, fake_i)
                 loss_l2 += tf.sqrt(tf.nn.l2_loss(real_i - fake_i) * 2)
         return loss_l2 / 16 / self.batch_size
 
@@ -208,8 +208,8 @@ class pix2pix(object):
         tf.global_variables_initializer().run()
 
         # self.g_sum = tf.summary.merge([self.g_loss_sum, self.g_loss_d_sum, self.g_loss_l2_sum, self.g_loss_p_sum])
-        # self.g_sum = tf.summary.merge([self.g_loss_sum, self.g_loss_l2_sum, self.g_loss_p_sum])
-        self.g_sum = tf.summary.merge([self.g_loss_sum, self.g_loss_p_sum])
+        self.g_sum = tf.summary.merge([self.g_loss_sum, self.g_loss_l2_sum, self.g_loss_p_sum])
+        # self.g_sum = tf.summary.merge([self.g_loss_sum, self.g_loss_p_sum])
         self.d_sum = tf.summary.merge([self.d_loss_sum, self.d_loss_real_sum, self.d_loss_fake_sum])
         self.writer = tf.summary.FileWriter("./logs", self.sess.graph)
 
