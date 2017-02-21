@@ -35,7 +35,7 @@ parser.add_argument('--checkpoint_dir', dest='checkpoint_dir', default='./checkp
 parser.add_argument('--sample_dir', dest='sample_dir', default='./sample', help='sample are saved here')
 parser.add_argument('--test_dir', dest='test_dir', default='./test', help='test sample are saved here')
 parser.add_argument('--L2_lambda', dest='L2_lambda', type=float, default=1, help='weight on L2 term in objective')
-parser.add_argument('--D_lambda', dest='D_lambda', type=float, default=1, help='weight on D loss')
+parser.add_argument('--D_lambda', dest='D_lambda', type=float, default=0.1, help='weight on D loss')
 
 
 args = parser.parse_args()
