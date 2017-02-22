@@ -141,7 +141,7 @@ class pix2pix(object):
         self.g_loss_l2_sum = tf.summary.scalar("g_loss_l2", self.g_loss_l2)
         self.g_loss_p_sum = tf.summary.scalar("g_loss_p", self.g_loss_p)
 
-        self.d_loss = self.d_loss_real - self.d_loss_fake
+        self.d_loss = self.d_loss_fake - self.d_loss_real
         self.g_loss = self.g_loss_d + self.g_loss_l2 + self.g_loss_p
         # self.g_loss = self.g_loss_l2 + self.g_loss_p
         # self.g_loss = self.g_loss_p
@@ -157,15 +157,15 @@ class pix2pix(object):
         self.saver = tf.train.Saver()
 
     def compute_loss_l2(self, real_B, fake_B, fake_P):
-        loss_l2 = 0
+        loss_l2 = []
         for i in xrange(16):
             for j in xrange(self.batch_size):
                 pi = tf.round(fake_P[i][j][0])
                 fake_i = fake_B[j, :, :, i]
                 real_i = real_B[j, :, :, i]
-                fake_i = tf.scalar_mul(pi, fake_i)
-                loss_l2 += tf.sqrt(tf.nn.l2_loss(real_i - fake_i) * 2)
-        return loss_l2 / 16 / self.batch_size
+                #fake_i = tf.scalar_mul(pi, fake_i)
+                loss_l2.append(tf.sqrt(tf.nn.l2_loss(real_i - fake_i) * 2))
+        return tf.reduce_mean(loss_l2)
 
     def load_random_samples(self, set_name):
         with open('./datasets/human/list/{}_rgb_id.txt'.format(set_name), 'r') as list_file:
@@ -199,7 +199,7 @@ class pix2pix(object):
 
     def train(self, args):
         """Train pix2pix"""
-        d_optim = (tf.train.RMSPropOptimizer(learning_rate=args.lr).minimize(-self.d_loss, var_list=self.d_vars))
+        d_optim = (tf.train.RMSPropOptimizer(learning_rate=args.lr).minimize(self.d_loss, var_list=self.d_vars))
         g_optim = (tf.train.RMSPropOptimizer(learning_rate=args.lr).minimize(self.g_loss, var_list=self.g_vars))
 
         # clip D theta
@@ -258,7 +258,7 @@ class pix2pix(object):
                                                            self.point_data: batch_p})
                 self.writer.add_summary(summary_str, counter)
 
-                errD = 0
+                #errD = 0
                 counter += 1
                 print("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss: %.8f, g_loss: %.8f" \
                     % (epoch, idx, batch_idxs, time.time() - start_time, errD, errG))
