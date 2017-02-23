@@ -80,14 +80,18 @@ def load_lip_data(image_id):
                 heatmap[:,:,int(idx / 2)] = 0
                 pid[int(idx/2)] = 0
                 continue
-            var = multivariate_normal(mean=[r_, c_], cov=2)
+            var = multivariate_normal(mean=[r_, c_], cov=5)
             pid[int(idx/2)] = 1
             for i in xrange(pose_size):
                 for j in xrange(pose_size):
                     heatmap[i, j, int(idx / 2)] = var.pdf([i, j]) * 10.0
+            # plt.clf()
+            # plt.imshow(heatmap[:,:,int(idx/2)].T)
+            # plt.show()
+            # wait = raw_input()
 
-    origin_g = origin_g / 127.5 - 1.
-    origin_d = origin_d / 127.5 - 1.
+    # origin_g = origin_g / 127.5 - 1.
+    # origin_d = origin_d / 127.5 - 1.
     # parsing_g = parsing_g / 127.5 - 1.
     # parsing_d = parsing_d / 127.5 - 1.
     

@@ -123,7 +123,7 @@ class pix2pix(object):
         self.d_loss_real = tf.reduce_mean(self.D_real_logits)
         self.d_loss_fake = tf.reduce_mean(self.D_fake_logits)
         self.g_loss_d = self.D_lambda * (-self.d_loss_fake)
-        # self.g_loss_l2 = self.L2_lambda * tf.reduce_mean(tf.sqrt(tf.nn.l2_loss(self.real_B - self.fake_B) * 2))
+        self.g_loss_l2 = self.L2_lambda * tf.reduce_mean(tf.sqrt(tf.nn.l2_loss(self.real_B - self.fake_B) * 2))
 
         self.fake_P = []
         self.g_loss_p = 0
@@ -133,7 +133,7 @@ class pix2pix(object):
             self.fake_P.append(fake_Pi)
             self.g_loss_p += self.L2_lambda * tf.reduce_mean(tf.abs(fake_Pi-self.point_data[:,i:i+1]))
 
-        self.g_loss_l2 = self.L2_lambda * self.compute_loss_l2(self.real_B, self.fake_B, self.fake_P)
+        # self.g_loss_l2 = self.L2_lambda * self.compute_loss_l2(self.real_B, self.fake_B, self.fake_P)
 
         self.d_loss_real_sum = tf.summary.scalar("d_loss_real", self.d_loss_real)
         self.d_loss_fake_sum = tf.summary.scalar("d_loss_fake", self.d_loss_fake)
@@ -142,9 +142,9 @@ class pix2pix(object):
         self.g_loss_p_sum = tf.summary.scalar("g_loss_p", self.g_loss_p)
 
         self.d_loss = self.d_loss_fake - self.d_loss_real
-        self.g_loss = self.g_loss_d + self.g_loss_l2 + self.g_loss_p
+        # self.g_loss = self.g_loss_d + self.g_loss_l2 + self.g_loss_p
         # self.g_loss = self.g_loss_l2 + self.g_loss_p
-        # self.g_loss = self.g_loss_p
+        self.g_loss = self.g_loss_l2
 
         self.g_loss_sum = tf.summary.scalar("g_loss", self.g_loss)
         self.d_loss_sum = tf.summary.scalar("d_loss", self.d_loss)
@@ -160,7 +160,7 @@ class pix2pix(object):
         loss_l2 = []
         for i in xrange(16):
             for j in xrange(self.batch_size):
-                pi = tf.round(fake_P[i][j][0])
+                # pi = tf.round(fake_P[i][j][0])
                 fake_i = fake_B[j, :, :, i]
                 real_i = real_B[j, :, :, i]
                 #fake_i = tf.scalar_mul(pi, fake_i)
@@ -207,9 +207,9 @@ class pix2pix(object):
 
         tf.global_variables_initializer().run()
 
-        self.g_sum = tf.summary.merge([self.g_loss_sum, self.g_loss_d_sum, self.g_loss_l2_sum, self.g_loss_p_sum])
+        # self.g_sum = tf.summary.merge([self.g_loss_sum, self.g_loss_d_sum, self.g_loss_l2_sum, self.g_loss_p_sum])
         # self.g_sum = tf.summary.merge([self.g_loss_sum, self.g_loss_l2_sum, self.g_loss_p_sum])
-        # self.g_sum = tf.summary.merge([self.g_loss_sum, self.g_loss_p_sum])
+        self.g_sum = tf.summary.merge([self.g_loss_sum, self.g_loss_l2_sum])
         self.d_sum = tf.summary.merge([self.d_loss_sum, self.d_loss_real_sum, self.d_loss_fake_sum])
         self.writer = tf.summary.FileWriter("./logs", self.sess.graph)
 
@@ -242,23 +242,23 @@ class pix2pix(object):
                 batch_images_d = np.array(batch_d).astype(np.float32)
 
                 # Update D network
-                for iter_d in range(4):
-                    D_sample_g, D_sample_d, D_batch_p, _ = self.load_random_samples('train')
-                    _, _ = self.sess.run([d_optim, self.clip_D],
-                                feed_dict={ self.real_data: D_sample_d, self.gen_data: D_sample_g, 
-                                            self.point_data: D_batch_p})
+                # for iter_d in range(4):
+                #     D_sample_g, D_sample_d, D_batch_p, _ = self.load_random_samples('train')
+                #     _, _ = self.sess.run([d_optim, self.clip_D],
+                #                 feed_dict={ self.real_data: D_sample_d, self.gen_data: D_sample_g, 
+                #                             self.point_data: D_batch_p})
 
-                _, summary_str, errD, _ = self.sess.run([d_optim, self.d_sum, self.d_loss, self.clip_D],
-                                               feed_dict={ self.real_data: batch_images_d, self.gen_data: batch_images_g, 
-                                                           self.point_data: batch_p})
-                self.writer.add_summary(summary_str, counter)
+                # _, summary_str, errD, _ = self.sess.run([d_optim, self.d_sum, self.d_loss, self.clip_D],
+                #                                feed_dict={ self.real_data: batch_images_d, self.gen_data: batch_images_g, 
+                #                                            self.point_data: batch_p})
+                # self.writer.add_summary(summary_str, counter)
                 # Update G network
                 _, summary_str, errG = self.sess.run([g_optim, self.g_sum, self.g_loss],
                                                feed_dict={ self.real_data: batch_images_d, self.gen_data: batch_images_g, 
                                                            self.point_data: batch_p})
                 self.writer.add_summary(summary_str, counter)
 
-                #errD = 0
+                errD = 0
                 counter += 1
                 print("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss: %.8f, g_loss: %.8f" \
                     % (epoch, idx, batch_idxs, time.time() - start_time, errD, errG))
