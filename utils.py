@@ -80,7 +80,7 @@ def load_lip_data(image_id):
                 heatmap[:,:,int(idx / 2)] = 0
                 pid[int(idx/2)] = 0
                 continue
-            var = multivariate_normal(mean=[r_, c_], cov=5)
+            var = multivariate_normal(mean=[r_, c_], cov=10)
             pid[int(idx/2)] = 1
             for i in xrange(pose_size):
                 for j in xrange(pose_size):
