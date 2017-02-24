@@ -84,7 +84,7 @@ def load_lip_data(image_id):
             pid[int(idx/2)] = 1
             for i in xrange(pose_size):
                 for j in xrange(pose_size):
-                    heatmap[i, j, int(idx / 2)] = var.pdf([i, j]) * 10.0
+                    heatmap[i, j, int(idx / 2)] = var.pdf([i, j]) * 255.0
             # plt.clf()
             # plt.imshow(heatmap[:,:,int(idx/2)].T)
             # plt.show()
