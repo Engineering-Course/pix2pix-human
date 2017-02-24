@@ -98,7 +98,8 @@ class pix2pix(object):
         self.d_loss_real = tf.reduce_mean(self.D_real_logits)
         self.d_loss_fake = tf.reduce_mean(self.D_fake_logits)
         self.g_loss_d = self.D_lambda * (-self.d_loss_fake)
-        self.g_loss_l2 = self.L2_lambda * tf.reduce_mean(tf.sqrt(tf.nn.l2_loss(self.real_B - self.fake_B) * 2))
+        # self.g_loss_l2 = self.L2_lambda * tf.reduce_mean(tf.sqrt(tf.nn.l2_loss(self.real_B - self.fake_B) * 2))
+        self.g_loss_l2 = self.L2_lambda * tf.reduce_mean(tf.sqrt(tf.reduce_sum(tf.square(tf.subtract(self.real_B, self.fake_B)))))
 
         self.fake_P = []
         self.g_loss_p = 0
