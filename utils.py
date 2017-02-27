@@ -64,7 +64,6 @@ def load_lip_data(image_id, phrase):
     origin_d = scipy.misc.imresize(img, [pose_size, pose_size])
     parsing_d = scipy.misc.imresize(parsing, [pose_size, pose_size])
     heatmap = np.zeros((pose_size, pose_size, 16), dtype=np.float64)
-    pid = np.zeros((16), dtype=np.int)
     with open('./datasets/human/pose/{}.txt'.format(image_id), 'r') as f:
         lines = f.readlines()
     points = lines[0].split(',')
@@ -81,10 +80,8 @@ def load_lip_data(image_id, phrase):
             r_ = int(pose_size * 1.0 * r_ / rows)
             if c_ + r_ == 0:
                 heatmap[:,:,int(idx / 2)] = 0
-                pid[int(idx/2)] = 0
                 continue
             var = multivariate_normal(mean=[r_, c_], cov=2)
-            pid[int(idx/2)] = 1
             for i in xrange(pose_size):
                 for j in xrange(pose_size):
                     heatmap[i, j, int(idx / 2)] = var.pdf([i, j]) * 10
@@ -95,11 +92,9 @@ def load_lip_data(image_id, phrase):
 
     # origin_g = origin_g / 127.5 - 1.
     # origin_d = origin_d / 127.5 - 1.
-    # parsing_g = parsing_g / 127.5 - 1.
-    # parsing_d = parsing_d / 127.5 - 1.
     
     img_d = np.concatenate((origin_d, parsing_d[:,:,np.newaxis], heatmap), axis=2)
-    return img_g, img_d, pid
+    return img_g, img_d
 
 # new added function for task, pose to parsing
 def load_lip_data_t2(image_id, flip=False, is_test=False):
@@ -170,7 +165,7 @@ def preprocess_A_and_B(img_A, img_B, load_size=286, fine_size=256, flip=True, is
 # -----------------------------
 
 # new added function for lip dataset, saving pose
-def save_lip_images(images, points, batch_size, sample_files, output_set, batch_idx=0):
+def save_lip_images(images, batch_size, sample_files, output_set, batch_idx=0):
 
     for i, image in enumerate(images):
         img_id = sample_files[batch_size * batch_idx + i][:-1]
@@ -182,12 +177,8 @@ def save_lip_images(images, points, batch_size, sample_files, output_set, batch_
         with open('./{}/pose/{}.txt'.format(output_set, img_id), 'w') as f:
             for p in xrange(image.shape[2]):
                 channel_ = image[:,:,p]
-                p_ = points[p][i]
-                r_ = 0
-                c_ = 0
                 channel_ = scipy.misc.imresize(channel_, [rows, cols])
-                if p_ > 0.5:
-                    r_, c_ = np.unravel_index(channel_.argmax(), channel_.shape)
+                r_, c_ = np.unravel_index(channel_.argmax(), channel_.shape)
                     # r_ = r_ * rows * 1.0 / channel_.shape[0]
                     # c_ = c_ * cols * 1.0 / channel_.shape[1]
                     # save_path = './{}/pose/{}_{}.png'.format(output_set, img_id, point_name[p])
