@@ -177,7 +177,7 @@ class pix2pix(object):
 
         tf.global_variables_initializer().run()
 
-        self.g_sum = tf.summary.merge([self.g_loss_sum, self.g_loss_l2_sum])
+        self.g_sum = tf.summary.merge([self.g_loss_sum, self.g_loss_d_sum, self.g_loss_l2_sum])
         self.d_sum = tf.summary.merge([self.d_loss_sum, self.d_loss_real_sum, self.d_loss_fake_sum])
         self.writer = tf.summary.FileWriter("./logs", self.sess.graph)
 
