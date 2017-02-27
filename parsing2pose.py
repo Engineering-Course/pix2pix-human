@@ -152,7 +152,7 @@ class pix2pix(object):
         batch_d = []
         batch_p = []
         for batch_file in data:
-            g_, d_, p_ = load_lip_data(batch_file)
+            g_, d_, p_ = load_lip_data(batch_file, 'train')
             batch_g.append(g_)
             batch_d.append(d_)
             batch_p.append(p_)
@@ -210,7 +210,7 @@ class pix2pix(object):
                 batch_d = []
                 batch_p = []
                 for batch_file in batch_files:
-                    g_, d_, p_ = load_lip_data(batch_file)
+                    g_, d_, p_ = load_lip_data(batch_file, 'train')
                     batch_g.append(g_)
                     batch_d.append(d_)
                     batch_p.append(p_)
@@ -377,52 +377,29 @@ class pix2pix(object):
     def test(self, args):
         """Test pix2pix"""
         tf.initialize_all_variables().run()
-
-        with open('./datasets/human/list/test_rgb_id.txt', 'r') as list_file:
-            lines = list_file.readlines()
-        sample_files = np.random.choice(lines, 4)
-
-        # load testing input
-        print("Loading testing images ...")
-        batch_g = []
-        batch_d = []
-        batch_p = []
-        for batch_file in sample_files:
-            g_, d_, p_ = load_lip_data(batch_file)
-            batch_g.append(g_)
-            batch_d.append(d_)
-            batch_p.append(p_)
-
-        sample_images_g = np.array(batch_g).astype(np.float32)
-        sample_images_d = np.array(batch_d).astype(np.float32)
-
-        sample_images_g = [sample_images_g[i:i+self.batch_size]
-                           for i in xrange(0, len(sample_images_g), self.batch_size)]
-        sample_images_g = np.array(sample_images_g)
-        sample_images_d = [sample_images_d[i:i+self.batch_size]
-                           for i in xrange(0, len(sample_images_d), self.batch_size)]
-        sample_images_d = np.array(sample_images_d)
-        sample_p = [batch_p[i:i+self.batch_size] for i in xrange(0, len(batch_p), self.batch_size)]
-
-        start_time = time.time()
         if self.load(self.checkpoint_dir):
             print(" [*] Load SUCCESS")
         else:
             print(" [!] Load failed...")
+        start_time = time.time()
+        with open('./datasets/human/list/test_rgb_id.txt', 'r') as list_file:
+            lines = list_file.readlines()
+        # sample_files = np.random.choice(lines, 4)
+        sample_files = lines
 
-        error_sum = 0
-        for i in xrange(sample_images_g.shape[0]):
-            idx = i
-            print("sampling image ", idx)
+        # load testing input
+        for idx in xrange(int(len(sample_files) / self.batch_size)):
+            batch_g = []
+            sample_i = sample_files[self.batch_size * idx : self.batch_size * (idx + 1)]
+            for batch_file in sample_i:
+                g_ = load_lip_data(batch_file, 'test')
+                batch_g.append(g_)
+
+            sample_images_g = np.array(batch_g)
+
             samples, samples_p = self.sess.run(
-                [self.fake_B_sample, self.fake_P],
-                feed_dict={self.real_data: sample_images_d[i], self.gen_data: sample_images_g[i],
-                           self.point_data: sample_p[i]})
-            save_lip_images(samples, samples_p, self.batch_size, sample_files, 'test', idx)
-
-            pose_gt = sample_images_d[i][:, :, :, self.input_c_dim + 1 : self.input_c_dim + 1 + self.output_c_dim]
-            error_sum += np.linalg.norm(samples - pose_gt)
-        print error_sum / self.batch_size / sample_images_g.shape[0]
+                [self.fake_B_sample, self.fake_P], feed_dict={ self.gen_data: sample_images_g})
+            save_lip_images(samples, samples_p, self.batch_size, sample_i, 'test')
 
 
 

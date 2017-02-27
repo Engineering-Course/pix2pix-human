@@ -46,7 +46,7 @@ def load_image(image_path):
 
 #---------------------------------
 # new added function for lip dataset (task parsing to pose)
-def load_lip_data(image_id):
+def load_lip_data(image_id, phrase):
     parsing_size = 368
     pose_size = 46
     image_id = image_id[:-1] 
@@ -57,8 +57,11 @@ def load_lip_data(image_id):
     rows = img.shape[0]
     cols = img.shape[1]
     origin_g = scipy.misc.imresize(img, [parsing_size, parsing_size])
-    origin_d = scipy.misc.imresize(img, [pose_size, pose_size])
     parsing_g = scipy.misc.imresize(parsing, [parsing_size, parsing_size])
+    img_g = np.concatenate((origin_g, parsing_g[:,:,np.newaxis]), axis=2)
+    if phrase == 'test':
+        return img_g
+    origin_d = scipy.misc.imresize(img, [pose_size, pose_size])
     parsing_d = scipy.misc.imresize(parsing, [pose_size, pose_size])
     heatmap = np.zeros((pose_size, pose_size, 16), dtype=np.float64)
     pid = np.zeros((16), dtype=np.int)
@@ -95,7 +98,6 @@ def load_lip_data(image_id):
     # parsing_g = parsing_g / 127.5 - 1.
     # parsing_d = parsing_d / 127.5 - 1.
     
-    img_g = np.concatenate((origin_g, parsing_g[:,:,np.newaxis]), axis=2)
     img_d = np.concatenate((origin_d, parsing_d[:,:,np.newaxis], heatmap), axis=2)
     return img_g, img_d, pid
 
@@ -169,7 +171,7 @@ def preprocess_A_and_B(img_A, img_B, load_size=286, fine_size=256, flip=True, is
 
 # new added function for lip dataset, saving pose
 def save_lip_images(images, points, batch_size, sample_files, output_set, batch_idx=0):
-    print images.shape
+
     for i, image in enumerate(images):
         img_id = sample_files[batch_size * batch_idx + i][:-1]
         image_path = './datasets/human/masks/{}.png'.format(img_id)
@@ -196,7 +198,7 @@ def save_lip_images(images, points, batch_size, sample_files, output_set, batch_
                 # plt.imshow(channel_.T)
                 # plt.show()
                 # wait = raw_input()
-        sio.savemat('./{}/pose/{}.mat'.format(output_set, img_id), {'result': image})
+        # sio.savemat('./{}/pose/{}.mat'.format(output_set, img_id), {'result': image})
 
 # new added function for lip dataset, saving parsing
 def save_lip_images_t2(images, batch_size, sample_files, output_set, batch_idx=0):
