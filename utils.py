@@ -167,7 +167,7 @@ def preprocess_A_and_B(img_A, img_B, load_size=286, fine_size=256, flip=True, is
 # new added function for lip dataset, saving pose
 def save_lip_images(images, batch_size, sample_files, output_set, batch_idx=0):
 
-    for i, image in enumerate(images):
+    for i, image in enumerate(images[0]):
         img_id = sample_files[batch_size * batch_idx + i][:-1]
         image_path = './datasets/human/masks/{}.png'.format(img_id)
         print img_id
