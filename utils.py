@@ -50,6 +50,7 @@ def load_lip_data(image_id, phrase):
     parsing_size = 368
     pose_size = 46
     image_id = image_id[:-1] 
+    print image_id
     image_path = './datasets/human/images/{}.jpg'.format(image_id)
     img = scipy.misc.imread(image_path).astype(np.float)
     parsing_path = './datasets/human/segmentations/{}.png'.format(image_id)
@@ -85,15 +86,17 @@ def load_lip_data(image_id, phrase):
             for i in xrange(pose_size):
                 for j in xrange(pose_size):
                     heatmap[i, j, int(idx / 2)] = var.pdf([i, j]) * 10
-            # plt.clf()
-            # plt.imshow(heatmap[:,:,int(idx/2)].T)
-            # plt.show()
-            # wait = raw_input()
+    heatsum = np.sum(heatmap, axis=2)
+    # plt.clf()
+    # # plt.imshow(heatmap[:,:,int(idx/2)].T)
+    # plt.imshow(heatsum)
+    # plt.show()
+    # wait = raw_input()
 
     # origin_g = origin_g / 127.5 - 1.
     # origin_d = origin_d / 127.5 - 1.
     
-    img_d = np.concatenate((origin_d, parsing_d[:,:,np.newaxis], heatmap), axis=2)
+    img_d = np.concatenate((origin_d, parsing_d[:,:,np.newaxis], heatsum), axis=2)
     return img_g, img_d
 
 # new added function for task, pose to parsing
