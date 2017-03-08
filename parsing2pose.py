@@ -13,7 +13,7 @@ class pix2pix(object):
     def __init__(self, sess, image_size=368,
                  batch_size=1, sample_size=1, output_size=368,
                  gf_dim=32, df_dim=32, L2_lambda=1, D_lambda=1,
-                 input_c_dim=3, output_c_dim=16, dataset_name='facades',
+                 input_c_dim=3, output_c_dim=1, dataset_name='facades',
                  checkpoint_dir=None, sample_dir=None):
         """
         Args:
@@ -94,18 +94,17 @@ class pix2pix(object):
 
     def build_model(self):
         self.gen_data = tf.placeholder(tf.float32,
-                                        [self.batch_size, self.image_size, self.image_size,
-                                         self.input_c_dim + 1],
+                                        [self.batch_size, self.image_size, self.image_size, self.input_c_dim + 1],
                                         name='images_and_parsing')
         self.real_data = tf.placeholder(tf.float32,
-                                        [self.batch_size, self.pose_size, self.pose_size,
-                                         self.input_c_dim + 1 + self.output_c_dim],
+                                        [self.batch_size, self.pose_size, self.pose_size, self.output_c_dim + 1],
                                         name='real_A_and_B_images')
 
-        self.real_A = self.real_data[:, :, :, :self.input_c_dim + 1]
-        self.real_B = self.real_data[:, :, :, self.input_c_dim + 1 : self.input_c_dim + 1 + self.output_c_dim]
+        self.real_A = self.real_data[:, :, :, :1]
+        self.real_B = self.real_data[:, :, :, 1 : 1 + self.output_c_dim]
 
         self.fake_B = self.generator(self.gen_data)
+        self.fake_B = tf.reduce_sum(self.fake_B, 3, keep_dims=True)
 
         self.real_AB = tf.concat([self.real_A, self.real_B], 3)
         self.fake_AB = tf.concat([self.real_A, self.fake_B], 3)
@@ -208,19 +207,19 @@ class pix2pix(object):
                 batch_images_d = np.array(batch_d).astype(np.float32)
 
                 # Update D network
-                for iter_d in range(4):
-                    D_sample_g, D_sample_d, _ = self.load_random_samples('train')
-                    _, _ = self.sess.run([d_optim, self.clip_D],
-                                feed_dict={ self.real_data: D_sample_d, self.gen_data: D_sample_g})
+                # for iter_d in range(4):
+                #     D_sample_g, D_sample_d, _ = self.load_random_samples('train')
+                #     _, _ = self.sess.run([d_optim, self.clip_D],
+                #                 feed_dict={ self.real_data: D_sample_d, self.gen_data: D_sample_g})
 
                 _, summary_str, errD, _ = self.sess.run([d_optim, self.d_sum, self.d_loss, self.clip_D],
                                                feed_dict={ self.real_data: batch_images_d, self.gen_data: batch_images_g})
                 self.writer.add_summary(summary_str, counter)
                 # Update G network
-                _, summary_str, errG = self.sess.run([g_optim, self.g_sum, self.g_loss],
-                                               feed_dict={ self.real_data: batch_images_d, self.gen_data: batch_images_g})
-                self.writer.add_summary(summary_str, counter)
-
+                # _, summary_str, errG = self.sess.run([g_optim, self.g_sum, self.g_loss],
+                #                                feed_dict={ self.real_data: batch_images_d, self.gen_data: batch_images_g})
+                # self.writer.add_summary(summary_str, counter)
+                errG = 0
                 counter += 1
                 print("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss: %.8f, g_loss: %.8f" \
                     % (epoch, idx, batch_idxs, time.time() - start_time, errD, errG))

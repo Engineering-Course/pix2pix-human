@@ -50,7 +50,7 @@ def load_lip_data(image_id, phrase):
     parsing_size = 368
     pose_size = 46
     image_id = image_id[:-1] 
-    print image_id
+    # print image_id
     image_path = './datasets/human/images/{}.jpg'.format(image_id)
     img = scipy.misc.imread(image_path).astype(np.float)
     parsing_path = './datasets/human/segmentations/{}.png'.format(image_id)
@@ -62,7 +62,6 @@ def load_lip_data(image_id, phrase):
     img_g = np.concatenate((origin_g, parsing_g[:,:,np.newaxis]), axis=2)
     if phrase == 'test':
         return img_g
-    origin_d = scipy.misc.imresize(img, [pose_size, pose_size])
     parsing_d = scipy.misc.imresize(parsing, [pose_size, pose_size])
     heatmap = np.zeros((pose_size, pose_size, 16), dtype=np.float64)
     with open('./datasets/human/pose/{}.txt'.format(image_id), 'r') as f:
@@ -96,7 +95,7 @@ def load_lip_data(image_id, phrase):
     # origin_g = origin_g / 127.5 - 1.
     # origin_d = origin_d / 127.5 - 1.
     
-    img_d = np.concatenate((origin_d, parsing_d[:,:,np.newaxis], heatsum), axis=2)
+    img_d = np.concatenate((parsing_d[:,:,np.newaxis], heatsum[:,:,np.newaxis]), axis=2)
     return img_g, img_d
 
 # new added function for task, pose to parsing
@@ -188,10 +187,11 @@ def save_lip_images(images, batch_size, sample_files, output_set, batch_idx=0):
                     # scipy.misc.imsave(save_path, channel_)
                 f.write('%d %d ' % (int(c_), int(r_)))
                 # print ('id: {}, p_: {}, r_: {}, c_: {}'.format(p, p_, r_, c_))
-                # plt.clf()
-                # plt.imshow(channel_.T)
-                # plt.show()
-                # wait = raw_input()
+            # iii = np.sum(image, axis=2)
+            # plt.clf()
+            # plt.imshow(iii.T)
+            # plt.show()
+            # wait = raw_input()
         # sio.savemat('./{}/pose/{}.mat'.format(output_set, img_id), {'result': image})
 
 # new added function for lip dataset, saving parsing
