@@ -238,14 +238,11 @@ class pix2pix(object):
             else:
                 assert tf.get_variable_scope().reuse == False
             h0 = lrelu(conv2d(image, self.df_dim, name='d_h0_conv'))
-            # h0 is (32 x 32 x self.df_dim)
             h1 = lrelu(self.d_bn1(conv2d(h0, self.df_dim*2, name='d_h1_conv')))
-            # h1 is (16 x 16 x self.df_dim*2)
-            h2 = lrelu(self.d_bn2(conv2d(h1, self.df_dim*4, d_h=1, d_w=1, name='d_h2_conv')))
-            # h3 is (8 x 8 x self.df_dim*4)
-            h3 = linear(tf.reshape(h2, [self.batch_size, -1]), 1, 'd_h2_lin')
-
-            return h3
+            h2 = lrelu(self.d_bn2(conv2d(h1, self.df_dim*4, name='d_h2_conv')))
+            h3 = lrelu(self.d_bn3(conv2d(h2, self.df_dim*8, name='d_h3_conv')))
+            h4 = linear(tf.reshape(h3, [self.batch_size, -1]), 1, 'd_h3_lin')
+            return h4
 
     def generator(self, image, y=None):
         with tf.variable_scope("generator") as scope:
