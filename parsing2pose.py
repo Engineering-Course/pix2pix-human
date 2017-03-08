@@ -255,7 +255,7 @@ class pix2pix(object):
             e1 = self.g_bn_e1(conv1_2)
             pool1 = tf.nn.max_pool(tf.nn.relu(e1), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
             
-            conv2_1 = tf.nn.conv2d(tf.nn.relu(pool1), self.weights['wc2_1'], strides=[1, 1, 1, 1], padding='SAME')
+            conv2_1 = tf.nn.conv2d(pool1, self.weights['wc2_1'], strides=[1, 1, 1, 1], padding='SAME')
             conv2_1 = tf.reshape(tf.nn.bias_add(conv2_1, self.biases['bc2_1']), conv2_1.get_shape())
 
             conv2_2 = tf.nn.conv2d(tf.nn.relu(conv2_1), self.weights['wc2_2'], strides=[1, 1, 1, 1], padding='SAME')
@@ -264,7 +264,7 @@ class pix2pix(object):
             e2 = self.g_bn_e2(conv2_2)
             pool2 = tf.nn.max_pool(tf.nn.relu(e2), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
-            conv3_1 = tf.nn.conv2d(tf.nn.relu(pool2), self.weights['wc3_1'], strides=[1, 1, 1, 1], padding='SAME')
+            conv3_1 = tf.nn.conv2d(pool2, self.weights['wc3_1'], strides=[1, 1, 1, 1], padding='SAME')
             conv3_1 = tf.reshape(tf.nn.bias_add(conv3_1, self.biases['bc3_1']), conv3_1.get_shape())
 
             conv3_2 = tf.nn.conv2d(tf.nn.relu(conv3_1), self.weights['wc3_2'], strides=[1, 1, 1, 1], padding='SAME')
@@ -279,7 +279,7 @@ class pix2pix(object):
             e3 = self.g_bn_e3(conv3_4)
             pool3 = tf.nn.max_pool(tf.nn.relu(e3), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
-            conv4_1 = tf.nn.conv2d(tf.nn.relu(pool3), self.weights['wc4_1'], strides=[1, 1, 1, 1], padding='SAME')
+            conv4_1 = tf.nn.conv2d(pool3, self.weights['wc4_1'], strides=[1, 1, 1, 1], padding='SAME')
             conv4_1 = tf.reshape(tf.nn.bias_add(conv4_1, self.biases['bc4_1']), conv4_1.get_shape())
 
             conv4_2 = tf.nn.conv2d(tf.nn.relu(conv4_1), self.weights['wc4_2'], strides=[1, 1, 1, 1], padding='SAME')
@@ -302,7 +302,7 @@ class pix2pix(object):
 
             e4 = self.g_bn_e4(conv4_7)
 
-            conv5_1 = tf.nn.conv2d(tf.nn.relu(e4), self.weights['wc5_1'], strides=[1, 1, 1, 1], padding='SAME')
+            conv5_1 = tf.nn.conv2d(e4, self.weights['wc5_1'], strides=[1, 1, 1, 1], padding='SAME')
             conv5_1 = tf.reshape(tf.nn.bias_add(conv5_1, self.biases['bc5_1']), conv5_1.get_shape())
 
             conv5_2 = tf.nn.conv2d(tf.nn.relu(conv5_1), self.weights['wc5_2'], strides=[1, 1, 1, 1], padding='SAME')
@@ -321,11 +321,11 @@ class pix2pix(object):
 
             conv1_2 = tf.nn.conv2d(tf.nn.relu(conv1_1), self.weights['wc1_2'], strides=[1, 1, 1, 1], padding='SAME')
             conv1_2 = tf.reshape(tf.nn.bias_add(conv1_2, self.biases['bc1_2']), conv1_2.get_shape())
-            
+
             e1 = self.g_bn_e1(conv1_2)
             pool1 = tf.nn.max_pool(tf.nn.relu(e1), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
             
-            conv2_1 = tf.nn.conv2d(tf.nn.relu(pool1), self.weights['wc2_1'], strides=[1, 1, 1, 1], padding='SAME')
+            conv2_1 = tf.nn.conv2d(pool1, self.weights['wc2_1'], strides=[1, 1, 1, 1], padding='SAME')
             conv2_1 = tf.reshape(tf.nn.bias_add(conv2_1, self.biases['bc2_1']), conv2_1.get_shape())
 
             conv2_2 = tf.nn.conv2d(tf.nn.relu(conv2_1), self.weights['wc2_2'], strides=[1, 1, 1, 1], padding='SAME')
@@ -334,7 +334,7 @@ class pix2pix(object):
             e2 = self.g_bn_e2(conv2_2)
             pool2 = tf.nn.max_pool(tf.nn.relu(e2), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
-            conv3_1 = tf.nn.conv2d(tf.nn.relu(pool2), self.weights['wc3_1'], strides=[1, 1, 1, 1], padding='SAME')
+            conv3_1 = tf.nn.conv2d(pool2, self.weights['wc3_1'], strides=[1, 1, 1, 1], padding='SAME')
             conv3_1 = tf.reshape(tf.nn.bias_add(conv3_1, self.biases['bc3_1']), conv3_1.get_shape())
 
             conv3_2 = tf.nn.conv2d(tf.nn.relu(conv3_1), self.weights['wc3_2'], strides=[1, 1, 1, 1], padding='SAME')
@@ -349,7 +349,7 @@ class pix2pix(object):
             e3 = self.g_bn_e3(conv3_4)
             pool3 = tf.nn.max_pool(tf.nn.relu(e3), ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
-            conv4_1 = tf.nn.conv2d(tf.nn.relu(pool3), self.weights['wc4_1'], strides=[1, 1, 1, 1], padding='SAME')
+            conv4_1 = tf.nn.conv2d(pool3, self.weights['wc4_1'], strides=[1, 1, 1, 1], padding='SAME')
             conv4_1 = tf.reshape(tf.nn.bias_add(conv4_1, self.biases['bc4_1']), conv4_1.get_shape())
 
             conv4_2 = tf.nn.conv2d(tf.nn.relu(conv4_1), self.weights['wc4_2'], strides=[1, 1, 1, 1], padding='SAME')
@@ -372,7 +372,7 @@ class pix2pix(object):
 
             e4 = self.g_bn_e4(conv4_7)
 
-            conv5_1 = tf.nn.conv2d(tf.nn.relu(e4), self.weights['wc5_1'], strides=[1, 1, 1, 1], padding='SAME')
+            conv5_1 = tf.nn.conv2d(e4, self.weights['wc5_1'], strides=[1, 1, 1, 1], padding='SAME')
             conv5_1 = tf.reshape(tf.nn.bias_add(conv5_1, self.biases['bc5_1']), conv5_1.get_shape())
 
             conv5_2 = tf.nn.conv2d(tf.nn.relu(conv5_1), self.weights['wc5_2'], strides=[1, 1, 1, 1], padding='SAME')
