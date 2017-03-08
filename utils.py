@@ -168,8 +168,7 @@ def preprocess_A_and_B(img_A, img_B, load_size=286, fine_size=256, flip=True, is
 
 # new added function for lip dataset, saving pose
 def save_lip_images(images, batch_size, sample_files, output_set, batch_idx=0):
-
-    for i, image in enumerate(images[0]):
+    for i, image in enumerate(images):
         img_id = sample_files[batch_size * batch_idx + i][:-1]
         image_path = './datasets/human/masks/{}.png'.format(img_id)
         print img_id
@@ -187,11 +186,10 @@ def save_lip_images(images, batch_size, sample_files, output_set, batch_idx=0):
                     # scipy.misc.imsave(save_path, channel_)
                 f.write('%d %d ' % (int(c_), int(r_)))
                 # print ('id: {}, p_: {}, r_: {}, c_: {}'.format(p, p_, r_, c_))
-            # iii = np.sum(image, axis=2)
-            # plt.clf()
-            # plt.imshow(iii.T)
-            # plt.show()
-            # wait = raw_input()
+                # plt.clf()
+                # plt.imshow(channel_.T)
+                # plt.show()
+                # wait = raw_input()
         # sio.savemat('./{}/pose/{}.mat'.format(output_set, img_id), {'result': image})
 
 # new added function for lip dataset, saving parsing

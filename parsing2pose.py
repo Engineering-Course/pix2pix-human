@@ -160,8 +160,9 @@ class pix2pix(object):
             [self.fake_B_sample, self.d_loss, self.g_loss],
             feed_dict={self.real_data: sample_d, self.gen_data: sample_g})
         save_lip_images(samples, self.batch_size, sample_files, 'sample')
-
-        pose_gt = sample_d[:, :, :, self.input_c_dim + 1 : self.input_c_dim + 1 + self.output_c_dim]
+        pose_gt = sample_d[:, :, :, 1 : 1 + self.output_c_dim]
+        pred_map = np.sum(samples, axis=3)
+        print pred_map.shape
         error_sum = np.linalg.norm(samples - pose_gt)
         print("l2 loss: {:.8f}.".format(error_sum / self.batch_size))
         print("[Sample] d_loss: {:.8f}, g_loss: {:.8f}".format(d_loss, g_loss))
@@ -431,8 +432,7 @@ class pix2pix(object):
 
             sample_images_g = np.array(batch_g)
 
-            samples = self.sess.run(
-                [self.fake_B_sample], feed_dict={ self.gen_data: sample_images_g})
+            samples = self.sess.run(self.fake_B_sample, feed_dict={ self.gen_data: sample_images_g})
             save_lip_images(samples, self.batch_size, sample_i, 'test')
 
 
