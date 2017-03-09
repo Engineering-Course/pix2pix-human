@@ -114,9 +114,9 @@ class pix2pix(object):
 
         self.fake_B_sample = self.sampler(self.gen_data)
 
-        self.d_loss_real = tf.reduce_mean(self.D_real_logits)
-        self.d_loss_fake = tf.reduce_mean(self.D_fake_logits)
-        self.g_loss_d = self.D_lambda * (-self.d_loss_fake)
+        self.d_loss_real = 0.5 * tf.reduce_mean((self.D_real_logits - 1)**2)
+        self.d_loss_fake = 0.5 * tf.reduce_mean(self.D_fake_logits**2)
+        self.g_loss_d = self.D_lambda * 0.5 * ((self.D_fake_logits - 1)**2)
         self.g_loss_l2 = self.L2_lambda * tf.reduce_mean(tf.sqrt(tf.nn.l2_loss(self.real_B - self.fake_B) * 2))
 
         self.d_loss_real_sum = tf.summary.scalar("d_loss_real", self.d_loss_real)
@@ -124,8 +124,7 @@ class pix2pix(object):
         self.g_loss_d_sum = tf.summary.scalar("g_loss_d", self.g_loss_d)
         self.g_loss_l2_sum = tf.summary.scalar("g_loss_l2", self.g_loss_l2)
 
-
-        self.d_loss = tf.reduce_mean(self.D_fake_logits - self.D_real_logits)
+        self.d_loss = self.d_loss_real + self.d_loss_fake
         self.g_loss = self.g_loss_l2
 
         self.g_loss_sum = tf.summary.scalar("g_loss", self.g_loss)
@@ -169,11 +168,13 @@ class pix2pix(object):
 
     def train(self, args):
         """Train pix2pix"""
-        d_optim = (tf.train.RMSPropOptimizer(learning_rate=args.lr).minimize(self.d_loss, var_list=self.d_vars))
-        g_optim = (tf.train.RMSPropOptimizer(learning_rate=args.lr).minimize(self.g_loss, var_list=self.g_vars))
+        # d_optim = (tf.train.RMSPropOptimizer(learning_rate=args.lr).minimize(self.d_loss, var_list=self.d_vars))
+        # g_optim = (tf.train.RMSPropOptimizer(learning_rate=args.lr).minimize(self.g_loss, var_list=self.g_vars))
+        d_optim = (tf.train.AdamOptimizer(learning_rate=args.lr).minimize(self.d_loss, var_list=self.d_vars))
+        g_optim = (tf.train.AdamOptimizer(learning_rate=args.lr).minimize(self.g_loss, var_list=self.g_vars))     
 
-        # clip D theta
-        self.clip_D = [p.assign(tf.clip_by_value(p, -0.01, 0.01)) for p in self.d_vars]
+        # # clip D theta
+        # self.clip_D = [p.assign(tf.clip_by_value(p, -0.01, 0.01)) for p in self.d_vars]
 
         tf.global_variables_initializer().run()
 
@@ -210,10 +211,10 @@ class pix2pix(object):
                 # Update D network
                 # for iter_d in range(4):
                 #     D_sample_g, D_sample_d, _ = self.load_random_samples('train')
-                #     _, _ = self.sess.run([d_optim, self.clip_D],
+                #     _ = self.sess.run([d_optim],
                 #                 feed_dict={ self.real_data: D_sample_d, self.gen_data: D_sample_g})
 
-                _, summary_str, errD, _ = self.sess.run([d_optim, self.d_sum, self.d_loss, self.clip_D],
+                _, summary_str, errD = self.sess.run([d_optim, self.d_sum, self.d_loss],
                                                feed_dict={ self.real_data: batch_images_d, self.gen_data: batch_images_g})
                 self.writer.add_summary(summary_str, counter)
                 # Update G network
