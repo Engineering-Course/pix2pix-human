@@ -99,15 +99,26 @@ def load_lip_data(image_id, phrase):
     return img_g, img_d
 
 # new added function for task, pose to parsing
-def load_lip_data_t2(image_id, flip=False, is_test=False):
-    fine_size=64
+def load_lip_data_t2(image_id, phrase):
+    parsing_size = 368
+    pose_size = 46
     image_id = image_id[:-1] 
-    image_path = './datasets/human/masks/{}.png'.format(image_id)
-    img_A = scipy.misc.imread(image_path).astype(np.float)
-    rows = img_A.shape[0]
-    cols = img_A.shape[1]
-    img_A = scipy.misc.imresize(img_A, [fine_size, fine_size])
-    img_B = np.zeros((fine_size, fine_size), dtype=np.float64)
+    # print image_id
+    image_path = './datasets/human/images/{}.jpg'.format(image_id)
+    img = scipy.misc.imread(image_path).astype(np.float)
+    parsing_path = './datasets/human/segmentations/{}.png'.format(image_id)
+    parsing = scipy.misc.imread(parsing_path).astype(np.float)
+    rows = img.shape[0]
+    cols = img.shape[1]
+    origin_g = scipy.misc.imresize(img, [parsing_size, parsing_size])
+    # parsing_g = scipy.misc.imresize(parsing, [pose_size, pose_size])
+    # img_g = np.concatenate((origin_g, parsing_g[:,:,np.newaxis]), axis=2)
+    # if phrase == 'test':
+    #     return img_g
+    parsing_d = scipy.misc.imresize(parsing, [pose_size, pose_size])
+    heatmap_d = np.zeros((pose_size, pose_size, 16), dtype=np.float64)
+    heatmap_g = np.zeros((parsing_size, parsing_size, 16), dtype=np.float64)
+
     with open('./datasets/human/pose/{}.txt'.format(image_id), 'r') as f:
         lines = f.readlines()
     points = lines[0].split(',')
@@ -116,23 +127,39 @@ def load_lip_data_t2(image_id, flip=False, is_test=False):
             c_ = int(point)
             c_ = min(c_, cols-1)
             c_ = max(c_, 0)
-            c_ = int(fine_size * 1.0 * c_ / cols)
+            c_d = int(pose_size * 1.0 * c_ / cols)
+            c_g = int(parsing_size * 1.0 * c_ / cols)
         else:
             r_ = int(point)
             r_ = min(r_, rows-1)
             r_ = max(r_, 0)
-            r_ = int(fine_size * 1.0 * r_ / rows)
-            if c_ + r_ == 0:
+            r_d = int(pose_size * 1.0 * r_ / rows)
+            r_g = int(parsing_size * 1.0 * r_ / rows)
+            if c_d + r_d == 0:
+                heatmap_d[:,:,int(idx / 2)] = 0
+                heatmap_g[:,:,int(idx / 2)] = 0
                 continue
-            var = multivariate_normal(mean=[r_, c_], cov=2)
-            for i in xrange(fine_size):
-                for j in xrange(fine_size):
-                    img_B[i, j] += var.pdf([i, j]) * 1.0
-    img_A = img_A/127.5 - 1.
-    img_BA = np.concatenate((img_B[:,:,np.newaxis], img_A), axis=2)
-    # print img_BA.shape
-    # img_AB shape: (fine_size, fine_size, input_c_dim + output_c_dim)
-    return img_BA
+            var = multivariate_normal(mean=[r_d, c_d], cov=2)
+            for i in xrange(pose_size):
+                for j in xrange(pose_size):
+                    heatmap_d[i, j, int(idx / 2)] = var.pdf([i, j]) * 10
+            var = multivariate_normal(mean=[r_g, c_g], cov=16)
+            for i in xrange(parsing_size):
+                for j in xrange(parsing_size):
+                    heatmap_g[i, j, int(idx / 2)] = var.pdf([i, j]) * 10
+    heatsum_d = np.sum(heatmap_d, axis=2)
+    heatsum_g = np.sum(heatmap_g, axis=2)
+
+    # plt.clf()
+    # plt.imshow(parsing_d)
+    # plt.show()
+    # wait = raw_input()
+
+    img_g = np.concatenate((origin_g, heatsum_g[:,:,np.newaxis]), axis=2)
+    if phrase == 'test':
+        return img_g
+    img_d = np.concatenate((parsing_d[:,:,np.newaxis], heatsum_d[:,:,np.newaxis]), axis=2)
+    return img_g, img_d    
 
 #------------------------------------------------------------
 def preprocess_lip_A_and_B(img_A, fine_size=256, flip=False, is_test=False):
