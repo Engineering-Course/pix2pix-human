@@ -103,7 +103,7 @@ def load_lip_data_t2(image_id, phrase):
     parsing_size = 368
     pose_size = 46
     image_id = image_id[:-1] 
-    # print image_id
+    print image_id
     image_path = './datasets/human/images/{}.jpg'.format(image_id)
     img = scipy.misc.imread(image_path).astype(np.float)
     parsing_path = './datasets/human/segmentations/{}.png'.format(image_id)
@@ -143,15 +143,18 @@ def load_lip_data_t2(image_id, phrase):
             for i in xrange(pose_size):
                 for j in xrange(pose_size):
                     heatmap_d[i, j, int(idx / 2)] = var.pdf([i, j]) * 10
-            var = multivariate_normal(mean=[r_g, c_g], cov=16)
+            var = multivariate_normal(mean=[r_g, c_g], cov=32)
             for i in xrange(parsing_size):
                 for j in xrange(parsing_size):
                     heatmap_g[i, j, int(idx / 2)] = var.pdf([i, j]) * 10
     heatsum_d = np.sum(heatmap_d, axis=2)
     heatsum_g = np.sum(heatmap_g, axis=2)
 
+    # save_path = './sample/heatmap/{}.png'.format(image_id)
+    # scipy.misc.imsave(save_path, heatsum_g)
+
     # plt.clf()
-    # plt.imshow(parsing_d)
+    # plt.imshow(heatsum_d)
     # plt.show()
     # wait = raw_input()
 
