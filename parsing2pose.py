@@ -116,7 +116,7 @@ class pix2pix(object):
 
         self.d_loss_real = 0.5 * tf.reduce_mean((self.D_real_logits - 1)**2)
         self.d_loss_fake = 0.5 * tf.reduce_mean(self.D_fake_logits**2)
-        self.g_loss_d = self.D_lambda * 0.5 * ((self.D_fake_logits - 1)**2)
+        self.g_loss_d = self.D_lambda * 0.5 * tf.reduce_mean((self.D_fake_logits - 1)**2)
         self.g_loss_l2 = self.L2_lambda * tf.reduce_mean(tf.sqrt(tf.nn.l2_loss(self.real_B - self.fake_B) * 2))
 
         self.d_loss_real_sum = tf.summary.scalar("d_loss_real", self.d_loss_real)
@@ -125,7 +125,7 @@ class pix2pix(object):
         self.g_loss_l2_sum = tf.summary.scalar("g_loss_l2", self.g_loss_l2)
 
         self.d_loss = self.d_loss_real + self.d_loss_fake
-        self.g_loss = self.g_loss_l2
+        self.g_loss = self.g_loss_d + self.g_loss_l2
 
         self.g_loss_sum = tf.summary.scalar("g_loss", self.g_loss)
         self.d_loss_sum = tf.summary.scalar("d_loss", self.d_loss)
@@ -204,7 +204,7 @@ class pix2pix(object):
                 batch_images_d = np.array(batch_d).astype(np.float32)
 
                 # Update D network
-                for iter_d in range(3):
+                for iter_d in range(2):
                     D_sample_g, D_sample_d, _ = self.load_random_samples('train')
                     _ = self.sess.run([d_optim],
                                 feed_dict={ self.real_data: D_sample_d, self.gen_data: D_sample_g})
@@ -221,10 +221,10 @@ class pix2pix(object):
                 print("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss: %.8f, g_loss: %.8f" \
                     % (epoch, idx, batch_idxs, time.time() - start_time, errD, errG))
 
-                if np.mod(counter, 3000) == 1:
+                if np.mod(counter, 3500) == 1:
                     self.sample_model(args.sample_dir, epoch, idx)
 
-                if np.mod(counter, 3000) == 2:
+                if np.mod(counter, 3500) == 2:
                     self.save(args.checkpoint_dir, counter)
 
     def discriminator(self, image, y=None, reuse=False):
