@@ -20,7 +20,7 @@ parser.add_argument('--ndf', dest='ndf', type=int, default=64, help='# of discri
 parser.add_argument('--input_nc', dest='input_nc', type=int, default=3, help='# of input image channels')
 parser.add_argument('--output_nc', dest='output_nc', type=int, default=16, help='# of output image channels')
 parser.add_argument('--niter', dest='niter', type=int, default=200, help='# of iter at starting learning rate')
-parser.add_argument('--lr', dest='lr', type=float, default=2e-4, help='initial learning rate for adam')
+parser.add_argument('--lr', dest='lr', type=float, default=5e-5, help='initial learning rate for adam')
 parser.add_argument('--beta1', dest='beta1', type=float, default=0.5, help='momentum term of adam')
 parser.add_argument('--flip', dest='flip', type=bool, default=False, help='if flip the images for data argumentation')
 parser.add_argument('--which_direction', dest='which_direction', default='AtoB', help='AtoB or BtoA')
@@ -35,7 +35,7 @@ parser.add_argument('--checkpoint_dir', dest='checkpoint_dir', default='./checkp
 parser.add_argument('--sample_dir', dest='sample_dir', default='./sample', help='sample are saved here')
 parser.add_argument('--test_dir', dest='test_dir', default='./test', help='test sample are saved here')
 parser.add_argument('--L2_lambda', dest='L2_lambda', type=float, default=1, help='weight on L2 term in objective')
-parser.add_argument('--D_lambda', dest='D_lambda', type=float, default=1, help='weight on D loss')
+parser.add_argument('--D_lambda', dest='D_lambda', type=float, default=0.1, help='weight on D loss')
 
 
 args = parser.parse_args()

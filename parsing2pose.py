@@ -168,13 +168,8 @@ class pix2pix(object):
 
     def train(self, args):
         """Train pix2pix"""
-        # d_optim = (tf.train.RMSPropOptimizer(learning_rate=args.lr).minimize(self.d_loss, var_list=self.d_vars))
-        # g_optim = (tf.train.RMSPropOptimizer(learning_rate=args.lr).minimize(self.g_loss, var_list=self.g_vars))
         d_optim = (tf.train.AdamOptimizer(learning_rate=args.lr).minimize(self.d_loss, var_list=self.d_vars))
         g_optim = (tf.train.AdamOptimizer(learning_rate=args.lr).minimize(self.g_loss, var_list=self.g_vars))     
-
-        # # clip D theta
-        # self.clip_D = [p.assign(tf.clip_by_value(p, -0.01, 0.01)) for p in self.d_vars]
 
         tf.global_variables_initializer().run()
 
@@ -209,19 +204,19 @@ class pix2pix(object):
                 batch_images_d = np.array(batch_d).astype(np.float32)
 
                 # Update D network
-                # for iter_d in range(4):
-                #     D_sample_g, D_sample_d, _ = self.load_random_samples('train')
-                #     _ = self.sess.run([d_optim],
-                #                 feed_dict={ self.real_data: D_sample_d, self.gen_data: D_sample_g})
+                for iter_d in range(3):
+                    D_sample_g, D_sample_d, _ = self.load_random_samples('train')
+                    _ = self.sess.run([d_optim],
+                                feed_dict={ self.real_data: D_sample_d, self.gen_data: D_sample_g})
 
                 _, summary_str, errD = self.sess.run([d_optim, self.d_sum, self.d_loss],
                                                feed_dict={ self.real_data: batch_images_d, self.gen_data: batch_images_g})
                 self.writer.add_summary(summary_str, counter)
                 # Update G network
-                # _, summary_str, errG = self.sess.run([g_optim, self.g_sum, self.g_loss],
-                #                                feed_dict={ self.real_data: batch_images_d, self.gen_data: batch_images_g})
-                # self.writer.add_summary(summary_str, counter)
-                errG = 0
+                _, summary_str, errG = self.sess.run([g_optim, self.g_sum, self.g_loss],
+                                               feed_dict={ self.real_data: batch_images_d, self.gen_data: batch_images_g})
+                self.writer.add_summary(summary_str, counter)
+
                 counter += 1
                 print("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss: %.8f, g_loss: %.8f" \
                     % (epoch, idx, batch_idxs, time.time() - start_time, errD, errG))
