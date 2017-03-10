@@ -116,7 +116,7 @@ class pix2pix(object):
 
         self.d_loss_real = tf.reduce_mean((self.D_real_logits - 1)**2)
         self.d_loss_fake = tf.reduce_mean(self.D_fake_logits**2)
-        self.g_loss_d = self.D_lambda * 0.5 * tf.reduce_mean((self.D_fake_logits - 1)**2)
+        self.g_loss_d = self.D_lambda * tf.reduce_mean((self.D_fake_logits - 1)**2)
         self.g_loss_l2 = self.L2_lambda * tf.reduce_mean(tf.sqrt(tf.nn.l2_loss(self.real_B - self.fake_B) * 2))
 
         self.d_loss_real_sum = tf.summary.scalar("d_loss_real", self.d_loss_real)
@@ -125,7 +125,7 @@ class pix2pix(object):
         self.g_loss_l2_sum = tf.summary.scalar("g_loss_l2", self.g_loss_l2)
 
         self.d_loss = 0.5 * (self.d_loss_real + self.d_loss_fake)
-        self.g_loss = self.g_loss_d + self.g_loss_l2
+        self.g_loss = 0.5 * (self.g_loss_d + self.g_loss_l2)
 
         self.g_loss_sum = tf.summary.scalar("g_loss", self.g_loss)
         self.d_loss_sum = tf.summary.scalar("d_loss", self.d_loss)
@@ -168,7 +168,7 @@ class pix2pix(object):
 
     def train(self, args):
         """Train pix2pix"""
-        d_optim = (tf.train.AdamOptimizer(learning_rate=args.lr).minimize(self.d_loss, var_list=self.d_vars))
+        d_optim = (tf.train.AdamOptimizer(learning_rate=args.lr*0.1).minimize(self.d_loss, var_list=self.d_vars))
         g_optim = (tf.train.AdamOptimizer(learning_rate=args.lr).minimize(self.g_loss, var_list=self.g_vars))     
 
         tf.global_variables_initializer().run()
