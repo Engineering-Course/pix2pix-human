@@ -82,12 +82,16 @@ def load_lip_data(image_id, phrase):
                 heatmap[:,:,int(idx / 2)] = 0
                 continue
             var = multivariate_normal(mean=[r_, c_], cov=2)
-            for i in xrange(pose_size):
-                for j in xrange(pose_size):
+            l1 = max(r_-10, 0)
+            r1 = min(r_+10, pose_size-1)
+            l2 = max(c_-10, 0)
+            r2 = min(c_+10, pose_size-1)
+            for i in xrange(l1, r1):
+                for j in xrange(l2, r2):
                     heatmap[i, j, int(idx / 2)] = var.pdf([i, j]) * 10
-    heatsum = np.sum(heatmap, axis=2)
+    # heatsum = np.sum(heatmap, axis=2)
     # plt.clf()
-    # # plt.imshow(heatmap[:,:,int(idx/2)].T)
+    # plt.imshow(heatmap[:,:,int(idx/2)].T)
     # plt.imshow(heatsum)
     # plt.show()
     # wait = raw_input()
@@ -95,7 +99,7 @@ def load_lip_data(image_id, phrase):
     # origin_g = origin_g / 127.5 - 1.
     # origin_d = origin_d / 127.5 - 1.
     
-    img_d = np.concatenate((parsing_d[:,:,np.newaxis], heatsum[:,:,np.newaxis]), axis=2)
+    img_d = np.concatenate((parsing_d[:,:,np.newaxis], heatmap), axis=2)
     return img_g, img_d
 
 # new added function for task, pose to parsing

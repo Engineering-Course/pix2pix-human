@@ -13,7 +13,7 @@ class pix2pix(object):
     def __init__(self, sess, image_size=368,
                  batch_size=1, sample_size=1, output_size=368,
                  gf_dim=32, df_dim=32, L2_lambda=1, D_lambda=1,
-                 input_c_dim=3, output_c_dim=1, dataset_name='facades',
+                 input_c_dim=3, output_c_dim=16, dataset_name='facades',
                  checkpoint_dir=None, sample_dir=None):
         """
         Args:
@@ -102,12 +102,13 @@ class pix2pix(object):
 
         self.real_A = self.real_data[:, :, :, :1]
         self.real_B = self.real_data[:, :, :, 1 : 1 + self.output_c_dim]
+        self.real_B_map = tf.reduce_sum(self.real_B, 3, keep_dims=True)
 
         self.fake_B = self.generator(self.gen_data)
-        self.fake_B = tf.reduce_sum(self.fake_B, 3, keep_dims=True)
-
-        self.real_AB = tf.concat([self.real_A, self.real_B], 3)
-        self.fake_AB = tf.concat([self.real_A, self.fake_B], 3)
+        self.fake_B_map = tf.reduce_sum(self.fake_B, 3, keep_dims=True)
+        
+        self.real_AB = tf.concat([self.real_A, self.real_B_map], 3)
+        self.fake_AB = tf.concat([self.real_A, self.fake_B_map], 3)
 
         self.D_real_logits = self.discriminator(self.real_AB, reuse=False)
         self.D_fake_logits = self.discriminator(self.fake_AB, reuse=True)
