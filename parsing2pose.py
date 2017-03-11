@@ -405,7 +405,7 @@ class pix2pix(object):
 
     def test(self, args):
         """Test pix2pix"""
-        tf.initialize_all_variables().run()
+        tf.global_variables_initializer().run()
         if self.load(self.checkpoint_dir):
             print(" [*] Load SUCCESS")
         else:
