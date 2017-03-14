@@ -215,7 +215,7 @@ class pix2pix(object):
                 if idx % 5 == 0:
                     _, summary_str, errD = self.sess.run([d_optim, self.d_sum, self.d_loss],
                                                    feed_dict={ self.real_data: batch_images_d, self.gen_data: batch_images_g})
-                    self.writer.add_summary(summary_str, counter * 5)
+                    self.writer.add_summary(summary_str, counter)
                 # Update G network
                 _, summary_str, errG = self.sess.run([g_optim, self.g_sum, self.g_loss],
                                                feed_dict={ self.real_data: batch_images_d, self.gen_data: batch_images_g})
