@@ -118,7 +118,10 @@ class pix2pix(object):
         self.d_loss_real = tf.reduce_mean((self.D_real_logits - 1)**2)
         self.d_loss_fake = tf.reduce_mean(self.D_fake_logits**2)
         self.g_loss_d = self.D_lambda * tf.reduce_mean((self.D_fake_logits - 1)**2)
-        self.g_loss_l2 = self.L2_lambda * tf.reduce_mean(tf.sqrt(tf.nn.l2_loss(self.real_B - self.fake_B) * 2))
+        self.g_loss_l2 = tf.reduce_mean(tf.sqrt(tf.reduce_sum(tf.square(tf.subtract(self.real_B, self.fake_B)), [1, 2, 3])))
+        # tf.reduce_mean(tf.sqrt(tf.reduce_sum(tf.square(tf.subtract(self.real_B, self .fake_B)))))
+        # print sq.get_shape()
+        # self.g_loss_l2 = self.L2_lambda * tf.reduce_mean(tf.sqrt(tf.nn.l2_loss(self.real_B - self.fake_B) * 2))
 
         self.d_loss_real_sum = tf.summary.scalar("d_loss_real", self.d_loss_real)
         self.d_loss_fake_sum = tf.summary.scalar("d_loss_fake", self.d_loss_fake)
@@ -209,10 +212,10 @@ class pix2pix(object):
                #     D_sample_g, D_sample_d, _ = self.load_random_samples('train')
                #     _ = self.sess.run([d_optim],
                #                 feed_dict={ self.real_data: D_sample_d, self.gen_data: D_sample_g})
-
-                _, summary_str, errD = self.sess.run([d_optim, self.d_sum, self.d_loss],
-                                               feed_dict={ self.real_data: batch_images_d, self.gen_data: batch_images_g})
-                self.writer.add_summary(summary_str, counter)
+                if idx % 5 == 0:
+                    _, summary_str, errD = self.sess.run([d_optim, self.d_sum, self.d_loss],
+                                                   feed_dict={ self.real_data: batch_images_d, self.gen_data: batch_images_g})
+                    self.writer.add_summary(summary_str, counter * 5)
                 # Update G network
                 _, summary_str, errG = self.sess.run([g_optim, self.g_sum, self.g_loss],
                                                feed_dict={ self.real_data: batch_images_d, self.gen_data: batch_images_g})
