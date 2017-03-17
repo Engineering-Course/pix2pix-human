@@ -226,6 +226,18 @@ def save_lip_images(images, batch_size, sample_files, output_set, batch_idx=0):
                 # wait = raw_input()
         # sio.savemat('./{}/pose/{}.mat'.format(output_set, img_id), {'result': image})
 
+def save_lip_map(images, batch_size, sample_files, output_set, batch_idx=0):
+    for i, image in enumerate(images):
+        img_id = sample_files[batch_size * batch_idx + i][:-1]
+        print img_id
+        save_path = './sample/result_46/{}.png'.format(img_id)
+        scipy.misc.imsave(save_path, image)
+        # plt.clf()
+        # plt.imshow(image)
+        # plt.show()
+        # wait = raw_input()
+
+
 # new added function for lip dataset, saving parsing
 def save_lip_images_t2(images, batch_size, sample_files, output_set, batch_idx=0):
     print images.shape

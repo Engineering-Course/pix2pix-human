@@ -114,6 +114,7 @@ class pix2pix(object):
         self.D_fake_logits = self.discriminator(self.fake_AB, reuse=True)
 
         self.fake_B_sample = self.sampler(self.gen_data)
+        self.fake_B_sample_map = tf.reduce_sum(self.fake_B_sample, 3)
 
         self.d_loss_real = tf.reduce_mean((self.D_real_logits - 1)**2)
         self.d_loss_fake = tf.reduce_mean(self.D_fake_logits**2)
@@ -431,6 +432,9 @@ class pix2pix(object):
 
             samples = self.sess.run(self.fake_B_sample, feed_dict={ self.gen_data: sample_images_g})
             save_lip_images(samples, self.batch_size, sample_i, 'test')
+            # samples = self.sess.run(self.fake_B_sample_map, feed_dict={ self.gen_data: sample_images_g})
+            # save_lip_map(samples, self.batch_size, sample_i, 'test')
+            
 
 
 
